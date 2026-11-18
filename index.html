@@ -41,7 +41,7 @@ const cv=$('c'), cx=cv.getContext('2d');
 const TAU=Math.PI*2, rnd=Math.random, PI=Math.PI;
 const coarse=matchMedia('(pointer:coarse)').matches||Math.min(screen.width,screen.height)<700;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const N=coarse?{f:1400,g:240,l:72,b:20,s:150,gr:150}:{f:2600,g:420,l:110,b:30,s:280,gr:260};
+const N=coarse?{f:1400,g:240,l:72,b:20,s:420,gr:260}:{f:2600,g:420,l:110,b:30,s:850,gr:480};
 
 // ---------- 색과 스프라이트 ----------
 const FOL=['#1f8a4c','#2fae63','#49cc7e','#8fe8ab','#d2fbdc','#8a5a34','#ffd27a','#ff5a78','#fff7ea'];
@@ -77,8 +77,10 @@ for(let i=0;i<N.l;i++){const t=.03+rnd()*.9;lY[i]=.07+t*.93;lA[i]=rnd()*TAU;lR[i
 const B=[];
 for(let i=0;i<N.b;i++){const t=.08+rnd()*.76;B.push({k:'b',a:i*2.39996+rnd()*.3,r:R(t)*1.07,y:.07+t*.93,h:rnd(),s:.019+rnd()*.013,c:i%6,ph:rnd()*TAU,p:0,sx:0,sy:0,vis:0})}
 [.5,1.95,3.4,4.9].forEach((a,i)=>B.push({k:'g',a,r:.3+(i%2)*.09,y:0,h:rnd(),s:.075+(i%3)*.017,c:i,ph:0,p:0,done:0}));
-const sX=F32(N.s),sY=F32(N.s),sZ=F32(N.s),sV=F32(N.s),sP=F32(N.s);
-for(let i=0;i<N.s;i++){sX[i]=(rnd()-.5)*3.2;sY[i]=rnd()*1.8-.1;sZ[i]=(rnd()-.5)*3.2;sV[i]=.05+rnd()*.09;sP[i]=rnd()*TAU}
+const sX=F32(N.s),sY=F32(N.s),sZ=F32(N.s),sV=F32(N.s),sP=F32(N.s),sK=F32(N.s),sO=F32(N.s);
+for(let i=0;i<N.s;i++){sX[i]=(rnd()-.5)*3.2;sY[i]=rnd()*1.8-.1;sZ[i]=(rnd()-.5)*3.2;sP[i]=rnd()*TAU;sO[i]=rnd();
+  const big=rnd()<.06;sK[i]=big?2.6+rnd()*2.6:.5+rnd()*1.3;sV[i]=(.05+rnd()*.09)*(big?1.6:1)} // 6%는 카메라 가까운 큰 눈송이(보케)
+let acc=.15; // 쌓인 눈 양 0~1
 const grA=F32(N.gr),grR=F32(N.gr);for(let i=0;i<N.gr;i++){grA[i]=rnd()*TAU;grR[i]=.12+Math.sqrt(rnd())*.85}
 const SKY=Array.from({length:90},()=>[rnd(),rnd()*.75,rnd()*TAU,.4+rnd()*1.6]);
 // 불꽃 파티클 풀
@@ -228,7 +230,8 @@ function frame(now){
   cx.globalCompositeOperation='lighter';
   for(const s of SKY){const x=((s[0]*W+cam.yaw*40)%W+W)%W;const sa=.25+.25*Math.sin(T*s[3]+s[2]);if(s[2]/TAU<TM)spr(glyph(s[3]>1.4?'+':'·',8),x,s[1]*H,s[3]*6,sa);else spr(DOT[8],x,s[1]*H,s[3]*3,sa)}
   proj(0,.02,0);if(PZ>0)spr(LGL[1],PX,PY,FOC/PZ*1.3,.16);
-  for(let i=0;i<N.gr;i++){proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*.4*(1-K));else spr(DOT[8],PX,PY,gs,depth(PZ)*.32*(1-K))}}
+  proj(0,0,0);if(PZ>0){const w=FOC/PZ*2.1,h=w*Math.max(.12,Math.abs(Math.sin(cam.pitch))*.9);cx.globalAlpha=(.05+.22*acc)*(1-K);cx.drawImage(DOT[8],PX-w/2,PY-h/2,w,h)} // 눈 이불
+  for(let i=0;i<N.gr;i++){if(grR[i]>.35+.6*acc)continue;proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*(.25+.35*acc)*(1-K));else spr(DOT[8],PX,PY,gs*(1+acc),depth(PZ)*(.2+.35*acc)*(1-K))}}
 
   for(const o of items){const ox=Math.cos(o.a)*o.r,oz=Math.sin(o.a)*o.r;o.z=(ox-CX)*fx+(o.y-CY)*fy+(oz-CZ)*fz}
   items.sort((a,b)=>b.z-a.z);
@@ -245,6 +248,7 @@ function frame(now){
     const tw=.5+.5*Math.sin(T*fS[i]+fP[i]),sp=tw**10,ci=K>.5?6+i%3:fC[i];
     const a=d*(.22+.8*sp)+K*.25;
     if(fG[i]<GX)spr(glyph(ch[i%nc],ci),x,y,s*(2.1+.7*TM),a*(.75+.25*TM));else spr(DOT[ci],x,y,s*2.3,a);
+    if(i>=40&&fH[i]<acc*.22&&TM<.99)spr(DOT[8],x,y-s*.35,s*1.1,a*.4*(1-K)*(1-TM)); // 가지에 쌓인 눈
     if(sp>.8&&d>.55){spr(FLARE,x,y,s*5.5,(sp-.8)*4.5*d*(1-TM));if(TM>.01)spr(glyph('✦',8),x,y,s*3.2,(sp-.8)*5*d*TM)}
   }
   for(let i=0;i<N.g;i++){
@@ -270,11 +274,24 @@ function frame(now){
   drawStar();
   // 눈
   cx.globalCompositeOperation='lighter';
+  // 눈: 느린 강약 주기 + 34초마다 좌우 번갈아 부는 돌풍(눈보라) + 쌓임
+  const amt=.25+.75*(.5+.5*Math.sin(T*.09))**2,gp=(T/34)%1,gust=gp<.3?Math.sin(gp/.3*PI)**2:0,gd=Math.floor(T/34)%2?1:-1;
+  const wX=.12*Math.sin(T*.05)+gust*1.1*gd,wZ=.07*Math.cos(T*.04)+gust*.35*gd,fall=1+gust*1.6+amt*.4;
+  const active=Math.min(1,amt+gust*.5)*Math.min(1,Q+.25);
+  acc=Math.min(1,Math.max(0,acc+(amt+gust*.6-.5)*dt*.025));
+  const str=1+Math.min(3.5,Math.abs(wX)*4); // 바람 세기만큼 가로로 늘어지는 눈발
   for(let i=0;i<N.s;i++){
-    sY[i]-=sV[i]*dt;sX[i]+=Math.sin(T*.5+sP[i])*.03*dt;if(sY[i]<-.05){sY[i]=1.75;sX[i]=(rnd()-.5)*3.2;sZ[i]=(rnd()-.5)*3.2}
-    proj(sX[i],sY[i],sZ[i]);if(PZ<0)continue;const s=Math.min(36,FOC/PZ*.011);
-    if(i%9===0||sP[i]/TAU<TM)spr(glyph(i%3?'*':'❄',8),PX,PY,s*2.6,.55*depth(PZ));else spr(DOT[8],PX,PY,s,.5*depth(PZ));
+    if(sO[i]>active)continue;
+    sY[i]-=sV[i]*fall*dt;sX[i]+=(wX*(.5+.25*sK[i])+Math.sin(T*1.1+sP[i])*.05)*dt;sZ[i]+=(wZ+Math.cos(T*.9+sP[i])*.03)*dt;
+    if(sY[i]<-.05){sY[i]=1.75;sX[i]=(rnd()-.5)*3.2;sZ[i]=(rnd()-.5)*3.2}
+    if(sX[i]>1.6)sX[i]-=3.2;else if(sX[i]<-1.6)sX[i]+=3.2;if(sZ[i]>1.6)sZ[i]-=3.2;else if(sZ[i]<-1.6)sZ[i]+=3.2;
+    proj(sX[i],sY[i],sZ[i]);if(PZ<0)continue;
+    const s=Math.min(90,FOC/PZ*.011*sK[i]),dd=depth(PZ),a=(sK[i]>2.5?.32:.6)*dd;
+    if(i%9===0||sP[i]/TAU<TM){const w=Math.min(150,s*2.6),r=T*(.6+sO[i])+sP[i],c=Math.cos(r)*DPR,n=Math.sin(r)*DPR; // 회전하며 떨어지는 결정
+      cx.globalAlpha=Math.min(1,a*1.1);cx.setTransform(c,n,-n,c,PX*DPR,PY*DPR);cx.drawImage(glyph(i%3?'*':'❄',8),-w/2,-w/2,w,w)}
+    else if(a>.01){cx.globalAlpha=Math.min(1,a);const w=s*str;cx.drawImage(DOT[8],PX-w/2,PY-s/2,w,s)}
   }
+  cx.setTransform(DPR,0,0,DPR,0,0);
   for(let i=0;i<MS;i++){if(pL[i]<=0)continue;pL[i]-=dt;pVY[i]+=170*SC_*dt;pVX[i]*=.985;pX[i]+=pVX[i]*dt;pY[i]+=pVY[i]*dt;const l=pL[i]/pM[i];if(i%10<TM*10)spr(glyphC(i%2?'*':'+',LC[pC[i]]),pX[i],pY[i],(9+9*l)*SC_,l);else spr(LGL[pC[i]],pX[i],pY[i],(5+7*l)*SC_,l);if(l>.7)spr(FLARE,pX[i],pY[i],12*SC_,l-.6)}
   cx.globalAlpha=1;
   requestAnimationFrame(frame);
