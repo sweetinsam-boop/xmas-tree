@@ -1,6 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>별빛 캐럴 트리</title>
+<title>별빛 캐럴 트리 · Interactive Christmas Tree</title>
+<meta name="description" content="화면에 켜두는 인터랙티브 크리스마스트리 웹 모션 그래픽. 점 그래픽과 문자(ASCII) 트리가 교대하고, 눈보라·루돌프 산타 썰매·클릭 불꽃·캐럴 연주를 단일 HTML로 즐길 수 있습니다.">
+<meta name="keywords" content="크리스마스트리, 크리스마스 트리, 캐럴, 산타, 루돌프, 모션 그래픽, 화면보호기, christmas tree, interactive christmas tree, ascii christmas tree, web audio carol, canvas animation, screensaver">
+<meta name="theme-color" content="#04050d">
+<link rel="canonical" href="https://sweetinsam-boop.github.io/xmas-tree/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="별빛 캐럴 트리 · Interactive Christmas Tree">
+<meta property="og:description" content="그래픽·문자 크리스마스트리, 눈보라, 루돌프 산타 썰매, 클릭 별빛 효과와 캐럴을 브라우저에서 바로 즐기세요.">
+<meta property="og:url" content="https://sweetinsam-boop.github.io/xmas-tree/">
+<meta property="og:image" content="https://sweetinsam-boop.github.io/xmas-tree/preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="별빛 캐럴 트리 · Interactive Christmas Tree">
+<meta name="twitter:description" content="화면에 켜두는 인터랙티브 크리스마스트리 모션 그래픽 & 캐럴 (단일 HTML, 설치 불필요)">
+<meta name="twitter:image" content="https://sweetinsam-boop.github.io/xmas-tree/preview.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IM+Fell+English+SC&display=swap">
 <style>
@@ -26,6 +42,8 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 body.nocursor{cursor:none}
 @media (prefers-reduced-motion:reduce){.hint{animation:none}}
 </style>
+</head>
+<body>
 
 <canvas id="c" role="img" aria-label="반짝이는 크리스마스트리 애니메이션"></canvas>
 <div class="ui" id="ui">
@@ -593,3 +611,5 @@ function onTap(x,y){
 cv.addEventListener('pointerdown',e=>{if(!AC)toggleSound(true);showUI();onTap(e.clientX,e.clientY)});
 addEventListener('pointermove',showUI);showUI();lock();
 </script>
+</body>
+</html>
