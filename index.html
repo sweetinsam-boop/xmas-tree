@@ -40,6 +40,23 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .cap{position:fixed;left:16px;right:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));margin:0;text-align:center;font-family:var(--f-display);font-size:clamp(17px,2.6vw,28px);letter-spacing:.06em;color:var(--gold);text-shadow:0 0 18px rgba(255,190,90,.6);opacity:0;transition:opacity 1.6s;pointer-events:none}
 .cap.show{opacity:1}
 body.nocursor{cursor:none}
+.panel{position:fixed;top:calc(66px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:min(310px,calc(100vw - 24px));max-height:calc(100vh - 96px);overflow-y:auto;padding:14px 16px;border-radius:16px;background:rgba(10,14,34,.82);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 40px rgba(0,0,0,.55);font-family:var(--f-ui);font-size:13px;color:var(--ink);z-index:20;opacity:0;transform:translateY(-8px) scale(.98);pointer-events:none;transition:opacity .22s,transform .22s}
+.panel.open{opacity:1;transform:none;pointer-events:auto}
+.panel h3{margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center}
+.panel h3:first-child{margin-top:0}
+.panel .stat{font-size:11px;color:rgba(238,243,255,.72);font-weight:400}
+.songs{display:flex;flex-direction:column;gap:4px}
+.songs button,.chips button{font:inherit;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:9px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.songs button{text-align:left;padding:7px 10px;font-size:12.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.songs button:hover,.chips button:hover{background:rgba(255,255,255,.14)}
+.songs button.on,.chips button.on{background:rgba(255,210,122,.22);border-color:rgba(255,210,122,.65);color:var(--gold)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips button{padding:5px 10px;font-size:12px;flex:1 1 auto;text-align:center}
+.sleep{position:fixed;inset:0;display:grid;place-items:center;background:rgba(4,5,13,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:30;opacity:0;pointer-events:none;transition:opacity .8s;font-family:var(--f-ui);text-align:center;padding:24px}
+.sleep.show{opacity:1;pointer-events:auto}
+.sleep p{margin:0 0 18px;font-size:17px;color:var(--gold);letter-spacing:.04em}
+.sleep button{font:inherit;font-size:15px;color:var(--ink);background:var(--glass);border:1px solid var(--gold);padding:11px 24px;border-radius:999px;cursor:pointer}
+.sleep button:hover{background:rgba(255,210,122,.2)}
 @media (prefers-reduced-motion:reduce){.hint{animation:none}}
 </style>
 </head>
@@ -48,7 +65,40 @@ body.nocursor{cursor:none}
 <canvas id="c" role="img" aria-label="반짝이는 크리스마스트리 애니메이션"></canvas>
 <div class="ui" id="ui">
   <button id="snd" class="off" aria-pressed="false" aria-label="캐럴 켜기/끄기">♪</button>
+  <button id="cfg" aria-expanded="false" aria-label="재생 및 타이머 설정">⚙</button>
   <button id="fs" aria-label="전체 화면">⛶</button>
+</div>
+<aside class="panel" id="panel" aria-label="재생 및 타이머 설정">
+  <h3>곡 선택 <span class="stat" id="songStat"></span></h3>
+  <div class="songs" id="songList"></div>
+  <h3>재생 순서</h3>
+  <div class="chips" id="modeChips">
+    <button data-v="seq" class="on">순차</button>
+    <button data-v="rnd">랜덤</button>
+    <button data-v="one">1곡 반복</button>
+  </div>
+  <h3>음악 재생 횟수 <span class="stat" id="repStat"></span></h3>
+  <div class="chips" id="repChips">
+    <button data-v="0" class="on">무한</button>
+    <button data-v="1">1곡</button>
+    <button data-v="3">3곡</button>
+    <button data-v="6">6곡</button>
+    <button data-v="12">12곡</button>
+  </div>
+  <h3>트리 애니메이션 지속 <span class="stat" id="durStat"></span></h3>
+  <div class="chips" id="durChips">
+    <button data-v="0" class="on">무한</button>
+    <button data-v="10">10분</button>
+    <button data-v="30">30분</button>
+    <button data-v="60">1시간</button>
+    <button data-v="120">2시간</button>
+  </div>
+</aside>
+<div class="sleep" id="sleep">
+  <div>
+    <p>🌙 설정한 시간이 되어 트리가 쉬고 있습니다</p>
+    <button id="wake">✨ 트리 다시 켜기</button>
+  </div>
 </div>
 <p class="cap" id="cap"></p>
 <button class="hint" id="hint">♪ 탭해서 캐럴 켜기</button>
@@ -385,8 +435,10 @@ function drawSanta(dt){
   cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
 }
 
+let animStopped=false,animRaf=0;
 function frame(now){
-  T=now/1000;const dt=Math.min(.05,T-lt||.016);lt=T;
+  if(animStopped)return;
+  T=now/1000;const dt=Math.min(.05,Math.max(0,T-lt||.016));lt=T;
   if(!sceneT0)sceneT0=T;
   if(T-sceneT0>SDUR)nextScene(T);
   const u=(T-sceneT0)/SDUR,k=1-Math.exp(-dt*.55),sl=RM?.4:1;
@@ -488,9 +540,9 @@ function frame(now){
     }
   }
   cx.globalAlpha=1;
-  requestAnimationFrame(frame);
+  if(!animStopped)animRaf=requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+animRaf=requestAnimationFrame(frame);
 
 // ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브, 퍼블릭 도메인 6곡) ----------
 const SONGS=[
@@ -521,14 +573,14 @@ const VOICING={
 };
 function midi(n){let m=NOTE[n[0]],i=1;if(n[i]==='#'){m++;i++}else if(n[i]==='b'){m--;i++}return 12*(+n[i]+1)+m}
 const hz=m=>440*2**((m-69)/12);
-let EV=[],LOOP=0;
-(function build(){let T0=0;
-  for(const s of SONGS)for(let r=0;r<s.reps;r++){
-    if(!r)EV.push({t:T0,title:s.title});
+const SONG_EV=SONGS.map(s=>{
+  const ev=[];let T0=0;
+  for(let r=0;r<s.reps;r++){
+    if(!r)ev.push({t:T0,title:s.title});
     let tt=T0,ni=0;
     for(const tok of s.mel.split(' ')){
       const[n,d]=tok.split(':'),dd=d*s.beat;
-      if(n!=='R')EV.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.92+((ni++%4===0)?.12:0)+(rnd()-.5)*.08});
+      if(n!=='R')ev.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.92+((ni++%4===0)?.12:0)+(rnd()-.5)*.08});
       tt+=dd;
     }
     let tc=T0;
@@ -537,25 +589,33 @@ let EV=[],LOOP=0;
       if(n!=='R'){
         const q=n.slice(-1),hasQ=q==='m'||q==='M'||q==='7',note=hasQ?n.slice(0,-1):n;
         const m=midi(note),v=VOICING[hasQ?q:note[0]]||VOICING.M,base=m<48?m+12:m;
-        // 오르골 저음 쇠빗 베이스
-        EV.push({t:tc,k:'b',m:base,d:dd});
-        // 오르골 아르페지오 쇠빗 반주
+        ev.push({t:tc,k:'b',m:base,d:dd});
         const steps=s.arp===2?Math.min(6,Math.round(beats)):Math.min(4,Math.round(beats));
         const stepD=dd/steps;
-        for(let k=1;k<steps;k++){
-          const iv=v[k%v.length];
-          EV.push({t:tc+k*stepD,k:'a',m:base+iv,d:stepD*2.2});
-        }
+        for(let k=1;k<steps;k++){const iv=v[k%v.length];ev.push({t:tc+k*stepD,k:'a',m:base+iv,d:stepD*2.2})}
       }
       tc+=dd;
     }
     console.assert(Math.abs(tt-tc)<1e-6,'멜로디·화음 길이 불일치: '+s.title);
-    T0=Math.max(tt,tc)+(r===s.reps-1?2.8:0);
+    T0=Math.max(tt,tc)+(r===s.reps-1?2.4:0);
   }
-  EV.sort((a,b)=>a.t-b.t);LOOP=T0;
-})();
+  ev.sort((a,b)=>a.t-b.t);
+  return{title:s.title,dur:T0,ev};
+});
 
-let AC=null,master,send,revSend,noise,evI=0,loopStart=0,audioOn=false;const noteQ=[];
+// 재생·타이머 설정 상태 (localStorage 저장)
+const STORE_KEY='xmas_tree_cfg_v1';
+let playMode='seq',maxPlays=0,curSong=0,playedCount=0,rndBag=[],songDone=false,stopTimer=0;
+let animDurMin=0,animEndAt=0,panelOpen=false;
+try{
+  const sv=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');
+  if(['seq','rnd','one'].includes(sv.playMode))playMode=sv.playMode;
+  if([0,1,3,6,12].includes(sv.maxPlays))maxPlays=sv.maxPlays;
+  if(Number.isInteger(sv.curSong)&&sv.curSong>=0&&sv.curSong<SONGS.length)curSong=sv.curSong;
+}catch(e){}
+function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong}))}catch(e){}}
+
+let AC=null,master,songBus,send,revSend,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
 function mkReverb(sec=2.1,decay=3.1){
   const sr=AC.sampleRate,len=sr*sec|0,buf=AC.createBuffer(2,len,sr);
   for(let ch=0;ch<2;ch++){
@@ -574,6 +634,25 @@ function mkReverb(sec=2.1,decay=3.1){
 function panTo(p,dest){
   if(AC.createStereoPanner){const pn=AC.createStereoPanner();pn.pan.value=p;pn.connect(dest);return pn}
   return dest;
+}
+function resetSongBus(){
+  if(!AC)return;
+  if(songBus){
+    const old=songBus,now=AC.currentTime;
+    try{old.gain.cancelScheduledValues(now);old.gain.setValueAtTime(old.gain.value,now);old.gain.linearRampToValueAtTime(.0001,now+.08);setTimeout(()=>{try{old.disconnect()}catch(e){}},140)}catch(e){}
+  }
+  songBus=AC.createGain();songBus.gain.value=1;songBus.connect(master);
+}
+function pickNextSong(){
+  if(playMode==='one')return curSong;
+  if(playMode==='rnd'){
+    if(!rndBag.length){
+      rndBag=SONGS.map((_,i)=>i).sort(()=>rnd()-.5);
+      if(rndBag.length>1&&rndBag[0]===curSong)rndBag.push(rndBag.shift());
+    }
+    return rndBag.shift();
+  }
+  return (curSong+1)%SONGS.length;
 }
 function initAudio(){
   try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){} // iOS 무음 스위치에서도 재생
@@ -596,18 +675,21 @@ function initAudio(){
   dl.delayTime.value=.28;fb.gain.value=.2;dlLP.type='lowpass';dlLP.frequency.value=2400;
   send.connect(dl);dl.connect(dlLP);dlLP.connect(fb);fb.connect(dl);dlLP.connect(master);dlLP.connect(revSend);
   const len=AC.sampleRate*.06|0;noise=AC.createBuffer(1,len,AC.sampleRate);const ch=noise.getChannelData(0);for(let i=0;i<len;i++)ch[i]=rnd()*2-1;
-  loopStart=AC.currentTime+.25;evI=0;
+  resetSongBus();
+  if(playMode==='rnd'&&!rndBag.length){curSong=rnd()*SONGS.length|0}
+  songStart=AC.currentTime+.25;evI=0;playedCount=0;songDone=false;
+  syncPanel();
   setInterval(sched,200);sched();
 }
 function env2(g,at,peak,a,end){g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(peak,at+a);g.gain.exponentialRampToValueAtTime(.0001,Math.max(at+a+.02,end))}
 function osc(type,f,at,end,dest,detune=0){const o=AC.createOscillator();o.type=type;o.frequency.value=f;if(detune)o.detune.value=detune;o.connect(dest);o.start(at);o.stop(end+.05);return o}
 // 진짜 오르골 쇠빗(Steel Tine) 합성: 맑은 사인 기본음 + 외팔보 비정수배 금속 배음(2.76x, 5.4x) + 핀 튕김 틱
-function playTine(m,at,vol,dur){
+function playTine(m,at,vol,dur,dest=songBus||master){
   const f=hz(m),t=at+(rnd()-.5)*.01,ring=Math.max(1.2,Math.min(3.2,dur*2.4));
   // 쇠빗 배치처럼 저음은 왼쪽, 고음은 오른쪽으로 미세 패닝
   const pan=Math.max(-.42,Math.min(.42,(m-72)*.022));
-  const bus=panTo(pan,master);
-  // 1) 깨끗하고 길게 여운이 남는 기본음 (사인파 + 아주 미세한 2배음)
+  const bus=panTo(pan,dest);
+  // 1) 깨끗하고 길게 여운이 남는 기본음
   const g1=AC.createGain();env2(g1,t,vol,.003,t+ring);
   g1.connect(bus);g1.connect(revSend);g1.connect(send);
   osc('sine',f,t,t+ring,g1);
@@ -637,23 +719,123 @@ function play(e,at){
   if(e.k==='b'){playTine(e.m,at,.14,e.d+.5);noteQ.push({t:at,beat:1});return}
 }
 function sched(){
-  if(!AC||AC.state!=='running')return;
+  if(!AC||AC.state!=='running'||songDone)return;
   const end=AC.currentTime+1.5;
-  for(;;){const e=EV[evI],at=loopStart+e.t;if(at>end)break;if(at>AC.currentTime-.05)play(e,at); // 백그라운드 탭에서 밀린 음은 건너뜀
-if(++evI>=EV.length){evI=0;loopStart+=LOOP}}
+  for(;;){
+    const cur=SONG_EV[curSong];
+    if(evI>=cur.ev.length){
+      playedCount++;
+      if(maxPlays>0&&playedCount>=maxPlays){
+        songDone=true;syncPanel();
+        const waitMs=Math.max(400,(songStart+cur.dur-AC.currentTime)*1000+1200);
+        clearTimeout(stopTimer);
+        stopTimer=setTimeout(async()=>{
+          if(!songDone)return;
+          if(AC&&AC.state==='running')await AC.suspend().catch(()=>{});
+          audioOn=false;
+          $('snd').classList.add('off');$('snd').setAttribute('aria-pressed',false);
+          showCap('♪ 설정한 재생을 마쳤습니다');syncPanel();
+        },waitMs);
+        break;
+      }
+      songStart+=cur.dur;
+      curSong=pickNextSong();evI=0;saveCfg();syncPanel();
+      continue;
+    }
+    const e=cur.ev[evI],at=songStart+e.t;
+    if(at>end)break;
+    if(at>AC.currentTime-.05)play(e,at); // 백그라운드 탭에서 밀린 음은 건너뜀
+    evI++;
+  }
+}
+async function playSongNow(idx){
+  curSong=idx;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();
+  if(!AC){initAudio();audioOn=true}
+  else{
+    if(AC.state!=='running')await AC.resume().catch(()=>{});
+    audioOn=true;noteQ.length=0;resetSongBus();
+    songStart=AC.currentTime+.12;evI=0;sched();
+  }
+  $('snd').classList.remove('off');$('snd').setAttribute('aria-pressed',true);
+  $('hint').hidden=true;lock();syncPanel();
 }
 async function toggleSound(force){
+  clearTimeout(stopTimer);
   if(!AC){initAudio();audioOn=true}
-  else if(force||AC.state!=='running'){await AC.resume().catch(()=>{});audioOn=true}
+  else if(force||AC.state!=='running'||songDone){
+    if(songDone){playedCount=0;songDone=false;noteQ.length=0;resetSongBus();songStart=AC.currentTime+.15;evI=0}
+    await AC.resume().catch(()=>{});audioOn=true;sched();
+  }
   else{await AC.suspend();audioOn=false}
   if(audioOn&&AC.state!=='running')await AC.resume().catch(()=>{});
   $('snd').classList.toggle('off',!audioOn);$('snd').setAttribute('aria-pressed',audioOn);
-  $('hint').hidden=true;lock();
+  $('hint').hidden=true;lock();syncPanel();
 }
 
-// ---------- 화면 유지·UI ----------
-let wl=null;async function lock(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')lock()});
+// ---------- 화면 유지·설정 패널·슬립 타이머 ----------
+let wl=null;
+async function lock(){try{if(!animStopped&&'wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>wl=null)}}catch(e){}}
+async function unlock(){try{if(wl){await wl.release();wl=null}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!animStopped)lock()});
+
+function sleepTree(){
+  animStopped=true;cancelAnimationFrame(animRaf);
+  clearTimeout(stopTimer);
+  if(AC&&AC.state==='running')AC.suspend().catch(()=>{});
+  audioOn=false;$('snd').classList.add('off');$('snd').setAttribute('aria-pressed',false);
+  unlock();setPanel(false);
+  $('sleep').classList.add('show');syncPanel();
+}
+function wakeTree(){
+  $('sleep').classList.remove('show');
+  animStopped=false;lt=performance.now()/1000;
+  if(animDurMin>0)animEndAt=Date.now()+animDurMin*60000;
+  lock();animRaf=requestAnimationFrame(frame);syncPanel();
+}
+function setAnimDur(min){
+  animDurMin=min;animEndAt=min>0?Date.now()+min*60000:0;syncPanel();
+}
+setInterval(()=>{
+  if(animStopped||!animEndAt)return;
+  if(Date.now()>=animEndAt){sleepTree();return}
+  if(panelOpen)syncPanel();
+},1000);
+
+function setPanel(open){
+  panelOpen=open;
+  $('panel').classList.toggle('open',open);
+  $('cfg').setAttribute('aria-expanded',open);
+  if(open){showUI();syncPanel()}else showUI();
+}
+function syncPanel(){
+  const list=$('songList');
+  if(list&&!list.children.length){
+    SONGS.forEach((s,i)=>{
+      const b=document.createElement('button');
+      b.dataset.i=i;b.textContent=`${i+1}. ${s.title.split(' · ')[1]||s.title}`;
+      b.onclick=e=>{e.stopPropagation();playSongNow(i)};
+      list.appendChild(b);
+    });
+  }
+  if(list)[...list.children].forEach((b,i)=>b.classList.toggle('on',i===curSong));
+  $('songStat').textContent=audioOn?'재생 중':'대기';
+  [...$('modeChips').children].forEach(b=>b.classList.toggle('on',b.dataset.v===playMode));
+  [...$('repChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===maxPlays));
+  $('repStat').textContent=maxPlays>0?(songDone?'완료':`${Math.max(0,maxPlays-playedCount)}곡 남음`):'무한';
+  [...$('durChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===animDurMin));
+  if(animDurMin>0&&animEndAt&&!animStopped){
+    const rem=Math.max(0,Math.ceil((animEndAt-Date.now())/1000));
+    const mm=String(rem/60|0).padStart(2,'0'),ss=String(rem%60).padStart(2,'0');
+    $('durStat').textContent=`${mm}:${ss} 남음`;
+  }else $('durStat').textContent=animDurMin>0?'종료됨':'계속 켜두기';
+}
+
+$('panel').addEventListener('pointerdown',e=>e.stopPropagation());
+$('cfg').onclick=e=>{e.stopPropagation();setPanel(!panelOpen)};
+$('modeChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();playMode=b.dataset.v;rndBag=[];saveCfg();syncPanel()};
+$('repChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();maxPlays=+b.dataset.v;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();syncPanel()};
+$('durChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setAnimDur(+b.dataset.v)};
+$('wake').onclick=e=>{e.stopPropagation();wakeTree()};
 $('hint').onclick=e=>{e.stopPropagation();toggleSound(true)};
 $('snd').onclick=e=>{e.stopPropagation();toggleSound()};
 const fsb=$('fs');
@@ -661,18 +843,18 @@ if(!document.fullscreenEnabled&&!document.webkitFullscreenEnabled)fsb.hidden=tru
 fsb.onclick=e=>{e.stopPropagation();const d=document,el=d.documentElement;
   if(d.fullscreenElement||d.webkitFullscreenElement)(d.exitFullscreen||d.webkitExitFullscreen).call(d);
   else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);p&&p.catch&&p.catch(()=>{})}};
-let uiT;function showUI(){$('ui').classList.remove('hide');document.body.classList.remove('nocursor');clearTimeout(uiT);uiT=setTimeout(()=>{$('ui').classList.add('hide');document.body.classList.add('nocursor')},3500)}
-// 클릭 시 영롱한 펜타토닉 오르골 쇠빗 (+ 산타 클릭/소환 시 3음 오르골 아르페지오)
+let uiT;function showUI(){$('ui').classList.remove('hide');document.body.classList.remove('nocursor');clearTimeout(uiT);if(!panelOpen)uiT=setTimeout(()=>{if(!panelOpen){$('ui').classList.add('hide');document.body.classList.add('nocursor')}},3500)}
+// 클릭 시 영롱한 펜타토닉 오르골 쇠빗 (+ 산타 클릭/소환 시 4음 오르골 아르페지오)
 const CHIME=[72,74,76,79,81,84,86,88];
 function playChime(hi,gliss){
   if(!audioOn||!AC||AC.state!=='running')return;
   const at=AC.currentTime+.01;
   if(gliss){
     const base=hi?76:72;
-    [0,4,7,12].forEach((iv,k)=>playTine(base+iv,at+k*.065,.12,.9));
+    [0,4,7,12].forEach((iv,k)=>playTine(base+iv,at+k*.065,.12,.9,master));
   }else{
     const m=CHIME[(hi?3:0)+(rnd()*(hi?5:6)|0)];
-    playTine(m,at,.15,1.1);
+    playTine(m,at,.15,1.1,master);
   }
 }
 function onTap(x,y){
@@ -682,7 +864,7 @@ function onTap(x,y){
     for(let k=0;k<8;k++){const li=rnd()*N.l|0;lF[li]=1.6;lFC[li]=1}
     playChime(1,0);return;
   }
-  // 2. 비행 중인 산타 썰매 클릭 → 별가루 폭포 + 썰매방울
+  // 2. 비행 중인 산타 썰매 클릭 → 별가루 폭포 + 오르골 아르페지오
   if(santa.on&&Math.hypot(x-santa.x,y-santa.y)<95*santa.sc){
     for(let k=0;k<18;k++){const a=rnd()*TAU,v=(25+rnd()*65)*SC_;addStardust(x,y,Math.cos(a)*v,Math.sin(a)*v-20*SC_,k%2)}
     burst(x,y,24,1,.95);addRing(x,y,105*SC_,0);playChime(1,1);return;
@@ -700,8 +882,8 @@ function onTap(x,y){
   if(!santa.on&&y<H*.36){startSanta(T);playChime(1,1)}
   else playChime(0,0);
 }
-cv.addEventListener('pointerdown',e=>{if(!AC)toggleSound(true);showUI();onTap(e.clientX,e.clientY)});
-addEventListener('pointermove',showUI);showUI();lock();
+cv.addEventListener('pointerdown',e=>{if(panelOpen){setPanel(false);return}if(!AC)toggleSound(true);showUI();onTap(e.clientX,e.clientY)});
+addEventListener('pointermove',showUI);syncPanel();showUI();lock();
 </script>
 </body>
 </html>
