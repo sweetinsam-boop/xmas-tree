@@ -492,21 +492,21 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 
-// ---------- 캐럴 (Web Audio 고급 합성: 첼레스타·하프 아르페지오·스트링 패드·콘서트홀 리버브) ----------
+// ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브) ----------
 const SONGS=[
- {title:'Jingle Bells · 징글벨',beat:.36,reps:2,tr:12,bells:1,arp:1,padLvl:.55,
+ {title:'Jingle Bells · 징글벨',beat:.37,reps:2,tr:12,arp:1,
   mel:'E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 G4:1 G4:1 F4:1 D4:1 C4:4',
   ch:'C3:4 C3:4 C3:4 C3:4 F2:4 C3:4 G2:4 G2:4 C3:4 C3:4 C3:4 C3:4 F2:4 C3:4 G2:4 C3:4'},
- {title:'Silent Night · 고요한 밤 거룩한 밤',beat:.35,reps:1,tr:0,pad:1,arp:2,padLvl:1,
+ {title:'Silent Night · 고요한 밤 거룩한 밤',beat:.38,reps:1,tr:12,arp:2,
   mel:'G4:3 A4:1 G4:2 E4:6 G4:3 A4:1 G4:2 E4:6 D5:4 D5:2 B4:6 C5:4 C5:2 G4:6 A4:4 A4:2 C5:3 B4:1 A4:2 G4:3 A4:1 G4:2 E4:6 A4:4 A4:2 C5:3 B4:1 A4:2 G4:3 A4:1 G4:2 E4:6 D5:4 D5:2 F5:3 D5:1 B4:2 C5:6 E5:6 C5:3 G4:1 E4:2 G4:3 F4:1 D4:2 C4:12',
   ch:'C3:6 C3:6 C3:6 C3:6 G2:6 G2:6 C3:6 C3:6 F2:6 F2:6 C3:6 C3:6 F2:6 F2:6 C3:6 C3:6 G2:6 G2:6 C3:6 C3:6 C3:6 G2:6 C3:12'},
- {title:'We Wish You a Merry Christmas',beat:.34,reps:3,tr:12,bells:1,arp:1,padLvl:.6,
+ {title:'We Wish You a Merry Christmas',beat:.36,reps:3,tr:12,arp:1,
   mel:'G3:1 C4:1 C4:.5 D4:.5 C4:.5 B3:.5 A3:1 A3:1 A3:1 D4:1 D4:.5 E4:.5 D4:.5 C4:.5 B3:1 G3:1 G3:1 E4:1 E4:.5 F4:.5 E4:.5 D4:.5 C4:1 A3:1 G3:.5 G3:.5 A3:1 D4:1 B3:1 C4:3',
   ch:'R:1 C3:3 F2:3 D3:3 G2:3 E3:3 A2:3 F2:2 G2:1 C3:3'},
 ];
 const NOTE={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-// 코드 근음별 재즈/클래식 4성부 보이싱 (반음 오프셋)
-const VOICING={C:[0,4,7,11,14],F:[0,4,7,11,14],G:[0,4,7,10,14],A:[0,3,7,10,14],D:[0,3,7,10,14],E:[0,3,7,10,14]};
+// 오르골 화성 보이싱 (맑은 3·5·7·8도 분산 화음)
+const VOICING={C:[0,7,12,16,19],F:[0,7,12,16,19],G:[0,7,10,14,19],A:[0,7,12,15,19],D:[0,7,10,14,17],E:[0,7,12,15,19]};
 const midi=n=>12*(+n[1]+1)+NOTE[n[0]], hz=m=>440*2**((m-69)/12);
 let EV=[],LOOP=0;
 (function build(){let T0=0;
@@ -515,7 +515,7 @@ let EV=[],LOOP=0;
     let tt=T0,ni=0;
     for(const tok of s.mel.split(' ')){
       const[n,d]=tok.split(':'),dd=d*s.beat;
-      EV.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.88+((ni++%4===0)?.14:0)+(rnd()-.5)*.08});
+      EV.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.92+((ni++%4===0)?.12:0)+(rnd()-.5)*.08});
       tt+=dd;
     }
     let tc=T0;
@@ -523,22 +523,18 @@ let EV=[],LOOP=0;
       const[n,d]=tok.split(':'),beats=+d,dd=beats*s.beat;
       if(n!=='R'){
         const m=midi(n),v=VOICING[n[0]]||VOICING.C,base=m<48?m+12:m;
-        // 깊은 베이스
-        EV.push({t:tc,k:'b',m,d:beats===4?2*s.beat:dd});
-        if(beats===4)EV.push({t:tc+2*s.beat,k:'b',m:m+7,d:2*s.beat});
-        // 따뜻한 오케스트라 스트링 패드 (3도·5도·7도/9도)
-        EV.push({t:tc,k:'p',notes:[base+v[1],base+v[2],base+v[3]],d:dd,lvl:s.padLvl||.6});
-        // 하프 아르페지오 반주
+        // 오르골 저음 쇠빗 베이스
+        EV.push({t:tc,k:'b',m:base,d:dd});
+        // 오르골 아르페지오 쇠빗 반주
         const steps=s.arp===2?Math.min(6,Math.round(beats)):Math.min(4,Math.round(beats));
         const stepD=dd/steps;
-        for(let k=0;k<steps;k++){
-          const iv=v[k%v.length]+(k>=v.length?12:0);
-          EV.push({t:tc+k*stepD,k:'a',m:base+iv,d:stepD*1.8,pan:(k%2?1:-1)*.32});
+        for(let k=1;k<steps;k++){
+          const iv=v[k%v.length];
+          EV.push({t:tc+k*stepD,k:'a',m:base+iv,d:stepD*2.2});
         }
       }
       tc+=dd;
     }
-    if(s.bells)for(let b=0;b<Math.round((tt-T0)/s.beat);b++)EV.push({t:T0+b*s.beat,k:'j',acc:b%2===0});
     console.assert(Math.abs(tt-tc)<1e-6,'멜로디·화음 길이 불일치: '+s.title);
     T0=Math.max(tt,tc)+(r===s.reps-1?2.8:0);
   }
@@ -546,19 +542,18 @@ let EV=[],LOOP=0;
 })();
 
 let AC=null,master,send,revSend,noise,evI=0,loopStart=0,audioOn=false;const noteQ=[];
-function mkReverb(sec=2.6,decay=2.8){
+function mkReverb(sec=2.1,decay=3.1){
   const sr=AC.sampleRate,len=sr*sec|0,buf=AC.createBuffer(2,len,sr);
   for(let ch=0;ch<2;ch++){
     const d=buf.getChannelData(ch);let lp=0;
     for(let i=0;i<len;i++){
       const t=i/len,env=Math.pow(1-t,decay);
-      // 초기 반사음 + 고주파가 서서히 감쇠하는 콘서트홀 잔향
       const raw=(rnd()*2-1)*env;
-      lp+=(raw-lp)*(.38*(1-t*.75)+.05);
+      lp+=(raw-lp)*(.34*(1-t*.75)+.06);
       d[i]=lp;
     }
-    // 초기 반사 스파이크 몇 개를 섞어 공간감 강조
-    [0.017,0.029,0.043,0.061].forEach((rt,idx)=>{const k=(rt+(ch?.003:0))*sr|0;if(k<len)d[k]+=((idx%2?1:-1)*.22)});
+    // 나무 울림통·실내 초기 반사음
+    [0.011,0.021,0.034,0.049].forEach((rt,idx)=>{const k=(rt+(ch?.0025:0))*sr|0;if(k<len)d[k]+=((idx%2?1:-1)*.2)});
   }
   return buf;
 }
@@ -570,102 +565,62 @@ function initAudio(){
   try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){} // iOS 무음 스위치에서도 재생
   AC=new (window.AudioContext||window.webkitAudioContext)();
   const comp=AC.createDynamicsCompressor();
-  comp.threshold.value=-16;comp.knee.value=18;comp.ratio.value=4;comp.attack.value=.006;comp.release.value=.18;
-  // 따뜻한 마스터 톤 쉐이핑 (저음 살짝 보강, 초고음 부드럽게)
-  const warm=AC.createBiquadFilter();warm.type='lowshelf';warm.frequency.value=220;warm.gain.value=2.5;
-  const silk=AC.createBiquadFilter();silk.type='highshelf';silk.frequency.value=5500;silk.gain.value=-2.5;
-  master=AC.createGain();master.gain.value=.72;
-  master.connect(warm);warm.connect(silk);silk.connect(comp);comp.connect(AC.destination);
-  // 콘서트홀 스테레오 리버브 (ConvolverNode)
-  revSend=AC.createGain();revSend.gain.value=.42;
-  const conv=AC.createConvolver();conv.buffer=mkReverb(2.6,2.7);
-  const revHP=AC.createBiquadFilter();revHP.type='highpass';revHP.frequency.value=240;
+  comp.threshold.value=-15;comp.knee.value=16;comp.ratio.value=3.5;comp.attack.value=.004;comp.release.value=.16;
+  // 오르골 나무 울림통 공명(380Hz 살짝 보강) + 날카로운 초고음 다듬기
+  const wood=AC.createBiquadFilter();wood.type='peaking';wood.frequency.value=380;wood.Q.value=1.2;wood.gain.value=3.2;
+  const silk=AC.createBiquadFilter();silk.type='highshelf';silk.frequency.value=6500;silk.gain.value=-3;
+  master=AC.createGain();master.gain.value=.76;
+  master.connect(wood);wood.connect(silk);silk.connect(comp);comp.connect(AC.destination);
+  // 따뜻한 우드 룸 스테레오 리버브
+  revSend=AC.createGain();revSend.gain.value=.38;
+  const conv=AC.createConvolver();conv.buffer=mkReverb(2.1,3.1);
+  const revHP=AC.createBiquadFilter();revHP.type='highpass';revHP.frequency.value=260;
   revSend.connect(conv);conv.connect(revHP);revHP.connect(master);
-  // 은은한 스테레오 에코 딜레이
-  send=AC.createGain();send.gain.value=.18;
+  // 아주 은은한 공간 잔향 딜레이
+  send=AC.createGain();send.gain.value=.12;
   const dl=AC.createDelay(1),fb=AC.createGain(),dlLP=AC.createBiquadFilter();
-  dl.delayTime.value=.32;fb.gain.value=.26;dlLP.type='lowpass';dlLP.frequency.value=2200;
+  dl.delayTime.value=.28;fb.gain.value=.2;dlLP.type='lowpass';dlLP.frequency.value=2400;
   send.connect(dl);dl.connect(dlLP);dlLP.connect(fb);fb.connect(dl);dlLP.connect(master);dlLP.connect(revSend);
-  const len=AC.sampleRate*.28|0;noise=AC.createBuffer(1,len,AC.sampleRate);const ch=noise.getChannelData(0);for(let i=0;i<len;i++)ch[i]=rnd()*2-1;
+  const len=AC.sampleRate*.06|0;noise=AC.createBuffer(1,len,AC.sampleRate);const ch=noise.getChannelData(0);for(let i=0;i<len;i++)ch[i]=rnd()*2-1;
   loopStart=AC.currentTime+.25;evI=0;
   setInterval(sched,200);sched();
 }
 function env2(g,at,peak,a,end){g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(peak,at+a);g.gain.exponentialRampToValueAtTime(.0001,Math.max(at+a+.02,end))}
 function osc(type,f,at,end,dest,detune=0){const o=AC.createOscillator();o.type=type;o.frequency.value=f;if(detune)o.detune.value=detune;o.connect(dest);o.start(at);o.stop(end+.05);return o}
-// 금속성 썰매방울 (다중 밴드패스 공명 + 짧은 고주파 링잉)
-function playJingle(at,acc,pan=.25){
-  if(!noise)return;
-  const out=panTo(pan,master),lvl=acc?.075:.042;
-  const freqs=[4200,6150,8300];
-  for(const fq of freqs){
-    const s=AC.createBufferSource();s.buffer=noise;
-    const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=fq;bp.Q.value=11;
-    const g=AC.createGain();env2(g,at,lvl,.004,at+.15);
-    s.connect(bp);bp.connect(g);g.connect(out);g.connect(revSend);s.start(at);s.stop(at+.17);
+// 진짜 오르골 쇠빗(Steel Tine) 합성: 맑은 사인 기본음 + 외팔보 비정수배 금속 배음(2.76x, 5.4x) + 핀 튕김 틱
+function playTine(m,at,vol,dur){
+  const f=hz(m),t=at+(rnd()-.5)*.01,ring=Math.max(1.2,Math.min(3.2,dur*2.4));
+  // 쇠빗 배치처럼 저음은 왼쪽, 고음은 오른쪽으로 미세 패닝
+  const pan=Math.max(-.42,Math.min(.42,(m-72)*.022));
+  const bus=panTo(pan,master);
+  // 1) 깨끗하고 길게 여운이 남는 기본음 (사인파 + 아주 미세한 2배음)
+  const g1=AC.createGain();env2(g1,t,vol,.003,t+ring);
+  g1.connect(bus);g1.connect(revSend);g1.connect(send);
+  osc('sine',f,t,t+ring,g1);
+  // 2) 오르골 특유의 영롱한 비정수배 금속 배음 (짧고 투명하게 반짝임)
+  if(f*2.756<12000){
+    const g2=AC.createGain();env2(g2,t,vol*.24,.002,t+.24);
+    g2.connect(bus);g2.connect(revSend);
+    osc('sine',f*2.756,t,t+.26,g2);
   }
-  const rg=AC.createGain();env2(rg,at,lvl*.22,.002,at+.11);rg.connect(out);
-  osc('sine',5280,at,at+.12,rg);osc('sine',7920,at,at+.1,rg);
+  if(f*5.404<14000){
+    const g3=AC.createGain();env2(g3,t,vol*.09,.0015,t+.09);
+    g3.connect(bus);
+    osc('sine',f*5.404,t,t+.11,g3);
+  }
+  // 3) 실린더 핀이 쇠빗을 튕기는 미세한 아날로그 '틱' 클릭
+  if(noise){
+    const s=AC.createBufferSource();s.buffer=noise;
+    const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=Math.min(6500,Math.max(2400,f*2.2));bp.Q.value=3.5;
+    const cg=AC.createGain();env2(cg,t,vol*.14,.001,t+.016);
+    s.connect(bp);bp.connect(cg);cg.connect(bus);s.start(t);s.stop(t+.025);
+  }
 }
 function play(e,at){
   if(e.title){noteQ.push({t:at,title:e.title});return}
-  // 1. 멜로디 리드: 첼레스타 FM 어택 + 따뜻한 일렉트릭 피아노 바디
-  if(e.k==='n'){
-    const t=at+(rnd()-.5)*.012,f=hz(e.m),vel=e.vel||1,end=t+e.d+.75;
-    const pan=Math.max(-.32,Math.min(.32,(e.m-72)*.018));
-    const bus=panTo(pan,master);
-    const lp=AC.createBiquadFilter();lp.type='lowpass';
-    lp.frequency.setValueAtTime(3400,t);lp.frequency.exponentialRampToValueAtTime(950,end);
-    const g=AC.createGain();env2(g,t,.18*vel,.01,end);
-    lp.connect(g);g.connect(bus);g.connect(revSend);g.connect(send);
-    osc('triangle',f,t,end,lp);
-    const g2=AC.createGain();g2.gain.value=.28;g2.connect(lp);osc('sine',f*2,t,end,g2,3);
-    // 첼레스타 영롱한 FM 벨 어택
-    const bellG=AC.createGain();env2(bellG,t,.09*vel,.004,t+.38);
-    bellG.connect(bus);bellG.connect(revSend);
-    const car=AC.createOscillator(),mod=AC.createOscillator(),modG=AC.createGain();
-    car.type='sine';car.frequency.value=f*2;
-    mod.type='sine';mod.frequency.value=f*5.512;
-    modG.gain.setValueAtTime(f*1.4,t);modG.gain.exponentialRampToValueAtTime(1,t+.18);
-    mod.connect(modG);modG.connect(car.frequency);car.connect(bellG);
-    car.start(t);mod.start(t);car.stop(t+.42);mod.stop(t+.22);
-    noteQ.push({t:at,m:e.m});return;
-  }
-  // 2. 하프 아르페지오 반주
-  if(e.k==='a'){
-    const t=at+(rnd()-.5)*.01,f=hz(e.m),end=t+Math.min(1.6,e.d+.5);
-    const bus=panTo(e.pan||0,master);
-    const lp=AC.createBiquadFilter();lp.type='lowpass';
-    lp.frequency.setValueAtTime(2300,t);lp.frequency.exponentialRampToValueAtTime(480,end);
-    const g=AC.createGain();env2(g,t,.072,.008,end);
-    lp.connect(g);g.connect(bus);g.connect(revSend);
-    osc('triangle',f,t,end,lp);
-    const g2=AC.createGain();g2.gain.value=.22;g2.connect(lp);osc('sine',f*2,t,end*.7,g2);
-    return;
-  }
-  // 3. 따뜻한 오케스트라 스트링 패드 (디튠 합주)
-  if(e.k==='p'){
-    const end=at+e.d+.65,att=Math.min(.55,e.d*.4),peak=.026*(e.lvl||.6);
-    const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1050;lp.Q.value=.7;
-    const g=AC.createGain();
-    g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(peak,at+att);
-    g.gain.setValueAtTime(peak,Math.max(at+att,at+e.d-.1));
-    g.gain.exponentialRampToValueAtTime(.0001,end);
-    lp.connect(g);g.connect(master);g.connect(revSend);
-    for(const m of e.notes){const f=hz(m);osc('sawtooth',f,at,end,lp,-6);osc('triangle',f,at,end,lp,6)}
-    return;
-  }
-  // 4. 깊은 콘트라베이스 / 첼로 베이스
-  if(e.k==='b'){
-    const f=hz(e.m),end=at+e.d+.3;
-    const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;
-    const g=AC.createGain();env2(g,at,.18,.025,end);
-    lp.connect(g);g.connect(master);
-    osc('sine',f,at,end,lp);
-    const g2=AC.createGain();g2.gain.value=.35;g2.connect(lp);osc('triangle',f*2,at,end,g2);
-    noteQ.push({t:at,beat:1});return;
-  }
-  // 5. 썰매방울
-  if(e.k==='j'){playJingle(at,e.acc,.25)}
+  if(e.k==='n'){playTine(e.m,at,.21*(e.vel||1),e.d+.4);noteQ.push({t:at,m:e.m});return}
+  if(e.k==='a'){playTine(e.m,at,.095,e.d+.3);return}
+  if(e.k==='b'){playTine(e.m,at,.14,e.d+.5);noteQ.push({t:at,beat:1});return}
 }
 function sched(){
   if(!AC||AC.state!=='running')return;
@@ -693,17 +648,18 @@ fsb.onclick=e=>{e.stopPropagation();const d=document,el=d.documentElement;
   if(d.fullscreenElement||d.webkitFullscreenElement)(d.exitFullscreen||d.webkitExitFullscreen).call(d);
   else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);p&&p.catch&&p.catch(()=>{})}};
 let uiT;function showUI(){$('ui').classList.remove('hide');document.body.classList.remove('nocursor');clearTimeout(uiT);uiT=setTimeout(()=>{$('ui').classList.add('hide');document.body.classList.add('nocursor')},3500)}
-// 클릭 시 영롱한 펜타토닉 첼레스타 차임 (+ 산타 클릭/소환 시 썰매방울)
-const CHIME=[72,74,76,79,81,84,88];
-function playChime(hi,jingle){
+// 클릭 시 영롱한 펜타토닉 오르골 쇠빗 (+ 산타 클릭/소환 시 3음 오르골 아르페지오)
+const CHIME=[72,74,76,79,81,84,86,88];
+function playChime(hi,gliss){
   if(!audioOn||!AC||AC.state!=='running')return;
-  const at=AC.currentTime+.01,m=CHIME[(hi?3:0)+(rnd()*(hi?4:5)|0)],f=hz(m),end=at+.95;
-  const bus=panTo((rnd()-.5)*.5,master);
-  const g=AC.createGain();env2(g,at,.13,.006,end);g.connect(bus);g.connect(revSend);g.connect(send);
-  osc('sine',f,at,end,g);
-  const g2=AC.createGain();env2(g2,at,.06,.004,at+.42);g2.connect(bus);g2.connect(revSend);
-  osc('triangle',f*2,at,at+.42,g2,4);
-  if(jingle){playJingle(at,1,-.2);playJingle(at+.09,0,.2)}
+  const at=AC.currentTime+.01;
+  if(gliss){
+    const base=hi?76:72;
+    [0,4,7,12].forEach((iv,k)=>playTine(base+iv,at+k*.065,.12,.9));
+  }else{
+    const m=CHIME[(hi?3:0)+(rnd()*(hi?5:6)|0)];
+    playTine(m,at,.15,1.1);
+  }
 }
 function onTap(x,y){
   // 1. 꼭대기 별 클릭 → 황금 폭죽 + 강한 펄스
