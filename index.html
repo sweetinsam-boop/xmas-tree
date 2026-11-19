@@ -85,7 +85,8 @@ const grA=F32(N.gr),grR=F32(N.gr);for(let i=0;i<N.gr;i++){grA[i]=rnd()*TAU;grR[i
 const SKY=Array.from({length:90},()=>[rnd(),rnd()*.75,rnd()*TAU,.4+rnd()*1.6]);
 // 먼 하늘 산타 썰매 + 별가루 꼬리 풀
 const STN=60,stX=F32(STN),stY=F32(STN),stVX=F32(STN),stVY=F32(STN),stL=F32(STN),stM=F32(STN),stC=new Uint8Array(STN);let stI=0;
-const santa={on:0,t:0,dur:16,next:2.5,dir:1,y0:.2,y1:.16,arc:-.08,emit:0};
+const santa={on:0,t:0,dur:16,next:2.5,dir:1,y0:.2,y1:.16,arc:-.08,emit:0,x:0,y:0,sc:1};
+const starPos={x:0,y:0,vis:0};
 function startSanta(now){
   santa.on=1;santa.t=0;santa.dur=RM?26:15+rnd()*4;
   santa.y0=.12+rnd()*.18;santa.y1=.10+rnd()*.18;santa.arc=-(.05+rnd()*.06);
@@ -95,9 +96,11 @@ function addStardust(x,y,vx,vy,ci){
   stX[stI]=x;stY[stI]=y;stVX[stI]=vx;stVY[stI]=vy;
   stM[stI]=stL[stI]=1.1+rnd()*1.1;stC[stI]=ci;stI=(stI+1)%STN;
 }
-// 불꽃 파티클 풀
+// 불꽃 파티클 풀 + 클릭 파동 링 풀
 const MS=520,pX=F32(MS),pY=F32(MS),pVX=F32(MS),pVY=F32(MS),pL=F32(MS),pM=F32(MS),pC=new Uint8Array(MS);let pI=0;
 function burst(x,y,n,ci,sp=1){for(let k=0;k<n;k++){const a=rnd()*TAU,v=(50+rnd()*170)*sp*SC_;pX[pI]=x;pY[pI]=y;pVX[pI]=Math.cos(a)*v;pVY[pI]=Math.sin(a)*v-60*sp*SC_;pM[pI]=pL[pI]=.6+rnd()*.9;pC[pI]=ci==null?rnd()*6|0:ci;pI=(pI+1)%MS}}
+const RN=16,rX=F32(RN),rY=F32(RN),rL=F32(RN),rM=F32(RN),rR=F32(RN),rC=new Uint8Array(RN);let rI=0;
+function addRing(x,y,rad,ci){rX[rI]=x;rY[rI]=y;rM[rI]=rL[rI]=.78;rR[rI]=rad;rC[rI]=ci;rI=(rI+1)%RN}
 
 // ---------- 장면(카메라·연출) ----------
 const SCENES=[
@@ -201,8 +204,8 @@ function drawItem(o){
   else{place(o.a,o.r,o.y,o.h);proj(WX,WY,WZ);o.vis=PZ>0;if(PZ>0){o.sx=PX;o.sy=PY;drawBauble(o,PX,PY,PZ,depth(PZ))}}
 }
 function drawStar(){
-  proj(0,1.05+E*.25,0);if(PZ<0)return;
-  const x=PX,y=PY,s=Math.min(150,FOC/PZ*.07)*(1+starP*.22)*(1-K*.5);
+  proj(0,1.05+E*.25,0);starPos.vis=PZ>0;if(PZ<0)return;
+  const x=PX,y=PY,s=Math.min(150,FOC/PZ*.07)*(1+starP*.22)*(1-K*.5);starPos.x=x;starPos.y=y;
   cx.globalCompositeOperation='lighter';
   spr(LGL[1],x,y,s*7*(.85+.15*Math.sin(T*2)),.5+.35*starP);
   cx.save();cx.translate(x,y);cx.rotate(T*.22);
@@ -285,6 +288,7 @@ function drawSanta(dt){
     H*(santa.y0+(santa.y1-santa.y0)*uu+santa.arc*Math.sin(uu*PI))+Math.sin(uu*PI*3)*5*sc
   ];
   const[x,y]=posAt(u),[x2,y2]=posAt(u+.004);
+  santa.x=x;santa.y=y;santa.sc=sc;
   const ang=Math.atan2(y2-y,(x2-x)*dir);
   const fade=Math.min(1,u*10,(1-u)*10)*(1-K*.35);
   // 썰매 뒤 별가루 생성
@@ -451,6 +455,20 @@ function frame(now){
   }
   cx.setTransform(DPR,0,0,DPR,0,0);
   for(let i=0;i<MS;i++){if(pL[i]<=0)continue;pL[i]-=dt;pVY[i]+=170*SC_*dt;pVX[i]*=.985;pX[i]+=pVX[i]*dt;pY[i]+=pVY[i]*dt;const l=pL[i]/pM[i];if(i%10<TM*10)spr(glyphC(i%2?'*':'+',LC[pC[i]]),pX[i],pY[i],(9+9*l)*SC_,l);else spr(LGL[pC[i]],pX[i],pY[i],(5+7*l)*SC_,l);if(l>.7)spr(FLARE,pX[i],pY[i],12*SC_,l-.6)}
+  // 클릭 파동 링 (그래픽: 빛 원형 링 + 플래시 / 문자: ✦· 확산)
+  for(let i=0;i<RN;i++){
+    if(rL[i]<=0)continue;
+    rL[i]-=dt;const p=1-rL[i]/rM[i],e=1-(1-p)**3,rad=rR[i]*e,a=(1-p)**1.6,col=LC[rC[i]];
+    if(a<.01)continue;
+    if(TM<.99){
+      cx.save();cx.globalAlpha=a*(1-TM)*.85;cx.strokeStyle=col;cx.lineWidth=(2.4-1.6*p)*SC_;
+      cx.beginPath();cx.arc(rX[i],rY[i],rad,0,TAU);cx.stroke();cx.restore();
+      if(p<.45)spr(FLARE,rX[i],rY[i],rR[i]*(1.1-p)*1.2,(1-p/.45)*(1-TM)*.9);
+    }
+    if(TM>.01){
+      for(let k=0;k<12;k++){const ag=k/12*TAU+p*.5;spr(glyphC(k%2?'·':'✦',col),rX[i]+Math.cos(ag)*rad,rY[i]+Math.sin(ag)*rad,(10+5*(1-p))*SC_,a*TM)}
+    }
+  }
   cx.globalAlpha=1;
   requestAnimationFrame(frame);
 }
@@ -534,6 +552,44 @@ fsb.onclick=e=>{e.stopPropagation();const d=document,el=d.documentElement;
   if(d.fullscreenElement||d.webkitFullscreenElement)(d.exitFullscreen||d.webkitExitFullscreen).call(d);
   else{const p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);p&&p.catch&&p.catch(()=>{})}};
 let uiT;function showUI(){$('ui').classList.remove('hide');document.body.classList.remove('nocursor');clearTimeout(uiT);uiT=setTimeout(()=>{$('ui').classList.add('hide');document.body.classList.add('nocursor')},3500)}
-cv.addEventListener('pointerdown',()=>{if(!AC)toggleSound(true);showUI()});
+// 클릭 시 영롱한 펜타토닉 차임 (+ 산타 클릭/소환 시 썰매방울)
+const CHIME=[72,74,76,79,81,84,88];
+function playChime(hi,jingle){
+  if(!audioOn||!AC||AC.state!=='running')return;
+  const at=AC.currentTime+.01,m=CHIME[(hi?3:0)+(rnd()*(hi?4:5)|0)],f=hz(m),end=at+.75;
+  const g=AC.createGain();env2(g,at,.14,.008,end);g.connect(master);g.connect(send);
+  osc('sine',f,at,end,g);
+  const g2=AC.createGain();env2(g2,at,.06,.005,at+.35);g2.connect(master);g2.connect(send);
+  osc('triangle',f*2,at,at+.35,g2);
+  if(jingle&&noise){
+    for(let k=0;k<2;k++){const t0=at+k*.09,s=AC.createBufferSource();s.buffer=noise;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=7500;const jg=AC.createGain();env2(jg,t0,.08,.004,t0+.14);s.connect(hp);hp.connect(jg);jg.connect(master);s.start(t0);s.stop(t0+.16)}
+  }
+}
+function onTap(x,y){
+  // 1. 꼭대기 별 클릭 → 황금 폭죽 + 강한 펄스
+  if(starPos.vis&&Math.hypot(x-starPos.x,y-starPos.y)<56*SC_){
+    starP=1.6;burst(starPos.x,starPos.y,40,1,1.25);addRing(starPos.x,starPos.y,130*SC_,1);
+    for(let k=0;k<8;k++){const li=rnd()*N.l|0;lF[li]=1.6;lFC[li]=1}
+    playChime(1,0);return;
+  }
+  // 2. 비행 중인 산타 썰매 클릭 → 별가루 폭포 + 썰매방울
+  if(santa.on&&Math.hypot(x-santa.x,y-santa.y)<95*santa.sc){
+    for(let k=0;k<18;k++){const a=rnd()*TAU,v=(25+rnd()*65)*SC_;addStardust(x,y,Math.cos(a)*v,Math.sin(a)*v-20*SC_,k%2)}
+    burst(x,y,24,1,.95);addRing(x,y,105*SC_,0);playChime(1,1);return;
+  }
+  // 3. 트리 오너먼트 클릭 → 해당 방울 펄스 + 같은 색 불꽃
+  let hit=null,best=38*SC_;
+  for(const o of B){if(o.k==='b'&&o.vis){const d=Math.hypot(x-o.sx,y-o.sy);if(d<best){best=d;hit=o}}}
+  if(hit){
+    hit.p=1.6;burst(hit.sx,hit.sy,24,hit.c,.95);addRing(hit.sx,hit.sy,88*SC_,hit.c);playChime(0,0);return;
+  }
+  // 4. 일반 위치 클릭 → 별빛 불꽃 + 파동 링 + 전구 반응 (+ 상단 밤하늘 클릭 시 산타 호출)
+  const ci=rnd()*6|0;
+  burst(x,y,22,ci,.9);addRing(x,y,92*SC_,ci);
+  for(let k=0;k<4;k++){const li=rnd()*N.l|0;lF[li]=1.5;lFC[li]=ci}
+  if(!santa.on&&y<H*.36){startSanta(T);playChime(1,1)}
+  else playChime(0,0);
+}
+cv.addEventListener('pointerdown',e=>{if(!AC)toggleSound(true);showUI();onTap(e.clientX,e.clientY)});
 addEventListener('pointermove',showUI);showUI();lock();
 </script>
