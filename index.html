@@ -492,22 +492,35 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 
-// ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브) ----------
+// ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브, 퍼블릭 도메인 6곡) ----------
 const SONGS=[
  {title:'Jingle Bells · 징글벨',beat:.37,reps:2,tr:12,arp:1,
   mel:'E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 G4:1 G4:1 F4:1 D4:1 C4:4',
   ch:'C3:4 C3:4 C3:4 C3:4 F2:4 C3:4 G2:4 G2:4 C3:4 C3:4 C3:4 C3:4 F2:4 C3:4 G2:4 C3:4'},
+ {title:'Dance of the Sugar Plum Fairy · 별사탕 요정의 춤',beat:.23,reps:2,tr:12,arp:1,
+  mel:'R:1 G4:.5 E4:.5 G4:1 F#4:1 D#4:1 E4:1 D4:.5 D4:.5 D4:1 C#4:.5 C#4:.5 C#4:1 C4:.5 C4:.5 C4:1 B3:.5 E4:.5 C4:.5 E4:.5 B3:1 R:1 R:1 G4:.5 E4:.5 G4:1 F#4:1 B4:1 G4:1 F#4:.5 F#4:.5 F#4:1 F#4:.5 E4:.5 G4:.5 F#4:.5 E4:.5 G4:.5 F#4:.5 E4:.5 B4:1 A4:.5 G4:.5 F#4:.5 E4:.5 D#4:1 R:1 G4:.5 E4:.5 G4:1 F#4:1 D#4:1 E4:1 D4:.5 D4:.5 D4:1 C#4:.5 C#4:.5 C#4:1 C4:.5 C4:.5 C4:1 B3:.5 E4:.5 C4:.5 E4:.5 B3:1 R:1 R:1 C5:.5 A4:.5 C5:1 B4:1 G4:1 A4:1 F#4:.5 G4:.5 E4:1 D#4:.5 E4:.5 F#4:.5 G4:.5 A4:.5 F#4:.5 D#4:.5 B3:.5 E4:2 R:2',
+  ch:'E2m:4 B27:2 G2M:2 A2m:2 C3M:2 B27:4 E2m:4 B27:4 E2m:4 B27:4 E2m:4 B27:2 G2M:2 A2m:2 C3M:2 B27:4 A2m:4 E2m:4 B27:4 E2m:4'},
  {title:'Silent Night · 고요한 밤 거룩한 밤',beat:.38,reps:1,tr:12,arp:2,
   mel:'G4:3 A4:1 G4:2 E4:6 G4:3 A4:1 G4:2 E4:6 D5:4 D5:2 B4:6 C5:4 C5:2 G4:6 A4:4 A4:2 C5:3 B4:1 A4:2 G4:3 A4:1 G4:2 E4:6 A4:4 A4:2 C5:3 B4:1 A4:2 G4:3 A4:1 G4:2 E4:6 D5:4 D5:2 F5:3 D5:1 B4:2 C5:6 E5:6 C5:3 G4:1 E4:2 G4:3 F4:1 D4:2 C4:12',
   ch:'C3:6 C3:6 C3:6 C3:6 G2:6 G2:6 C3:6 C3:6 F2:6 F2:6 C3:6 C3:6 F2:6 F2:6 C3:6 C3:6 G2:6 G2:6 C3:6 C3:6 C3:6 G2:6 C3:12'},
- {title:'We Wish You a Merry Christmas',beat:.36,reps:3,tr:12,arp:1,
+ {title:'Greensleeves · 그린슬리브스 (What Child Is This?)',beat:.26,reps:1,tr:12,arp:2,
+  mel:'A4:1 C5:2 D5:1 E5:1.5 F5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:2 A4:1 A4:1.5 G#4:.5 A4:1 B4:2 G#4:1 E4:2 A4:1 C5:2 D5:1 E5:1.5 F5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:1.5 B4:.5 A4:1 G#4:1.5 F#4:.5 G#4:1 A4:3 A4:3 G5:3 G5:1.5 F#5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:2 A4:1 A4:1.5 G#4:.5 A4:1 B4:2 G#4:1 E4:3 G5:3 G5:1.5 F#5:.5 E5:1 D5:2 B4:1 G4:1.5 A4:.5 B4:1 C5:1.5 B4:.5 A4:1 G#4:1.5 F#4:.5 G#4:1 A4:6',
+  ch:'R:1 A2m:6 G2M:6 F2M:6 E27:6 A2m:6 G2M:6 F2M:3 E27:3 A2m:6 C3M:6 G2M:6 A2m:6 E27:6 C3M:6 G2M:6 F2M:3 E27:3 A2m:6'},
+ {title:'The First Noel · 저 들 밖에 한밤중에',beat:.37,reps:1,tr:12,arp:1,
+  mel:'E4:.5 D4:.5 C4:1.5 D4:.5 E4:.5 F4:.5 G4:2 A4:.5 B4:.5 C5:1 B4:1 A4:1 G4:2 A4:.5 B4:.5 C5:1 B4:1 A4:1 G4:1 A4:1 B4:1 C5:1 G4:1 F4:1 E4:2 E4:.5 D4:.5 C4:1.5 D4:.5 E4:.5 F4:.5 G4:2 C5:.5 B4:.5 A4:2 A4:1 G4:3 C5:1 B4:1 A4:1 G4:1 A4:1 B4:1 C5:1 G4:1 F4:1 E4:2 D4:1 C4:3',
+  ch:'R:1 C3:3 G2:3 F2:3 C3:3 F2:3 C3:3 F2:2 G2:1 C3:3 C3:3 G2:3 F2:3 C3:3 A2:3 E3:3 F2:3 G2:3 C3:3'},
+ {title:'We Wish You a Merry Christmas',beat:.36,reps:2,tr:12,arp:1,
   mel:'G3:1 C4:1 C4:.5 D4:.5 C4:.5 B3:.5 A3:1 A3:1 A3:1 D4:1 D4:.5 E4:.5 D4:.5 C4:.5 B3:1 G3:1 G3:1 E4:1 E4:.5 F4:.5 E4:.5 D4:.5 C4:1 A3:1 G3:.5 G3:.5 A3:1 D4:1 B3:1 C4:3',
   ch:'R:1 C3:3 F2:3 D3:3 G2:3 E3:3 A2:3 F2:2 G2:1 C3:3'},
 ];
 const NOTE={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-// 오르골 화성 보이싱 (맑은 3·5·7·8도 분산 화음)
-const VOICING={C:[0,7,12,16,19],F:[0,7,12,16,19],G:[0,7,10,14,19],A:[0,7,12,15,19],D:[0,7,10,14,17],E:[0,7,12,15,19]};
-const midi=n=>12*(+n[1]+1)+NOTE[n[0]], hz=m=>440*2**((m-69)/12);
+// 오르골 화성 보이싱 (장조/단조/세븐스 분산 화음)
+const VOICING={
+  M:[0,7,12,16,19],m:[0,7,12,15,19],7:[0,7,10,14,19],
+  C:[0,7,12,16,19],F:[0,7,12,16,19],G:[0,7,10,14,19],A:[0,7,12,15,19],D:[0,7,10,14,17],E:[0,7,12,15,19]
+};
+function midi(n){let m=NOTE[n[0]],i=1;if(n[i]==='#'){m++;i++}else if(n[i]==='b'){m--;i++}return 12*(+n[i]+1)+m}
+const hz=m=>440*2**((m-69)/12);
 let EV=[],LOOP=0;
 (function build(){let T0=0;
   for(const s of SONGS)for(let r=0;r<s.reps;r++){
@@ -515,14 +528,15 @@ let EV=[],LOOP=0;
     let tt=T0,ni=0;
     for(const tok of s.mel.split(' ')){
       const[n,d]=tok.split(':'),dd=d*s.beat;
-      EV.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.92+((ni++%4===0)?.12:0)+(rnd()-.5)*.08});
+      if(n!=='R')EV.push({t:tt,k:'n',m:midi(n)+s.tr,d:dd,vel:.92+((ni++%4===0)?.12:0)+(rnd()-.5)*.08});
       tt+=dd;
     }
     let tc=T0;
     for(const tok of s.ch.split(' ')){
       const[n,d]=tok.split(':'),beats=+d,dd=beats*s.beat;
       if(n!=='R'){
-        const m=midi(n),v=VOICING[n[0]]||VOICING.C,base=m<48?m+12:m;
+        const q=n.slice(-1),hasQ=q==='m'||q==='M'||q==='7',note=hasQ?n.slice(0,-1):n;
+        const m=midi(note),v=VOICING[hasQ?q:note[0]]||VOICING.M,base=m<48?m+12:m;
         // 오르골 저음 쇠빗 베이스
         EV.push({t:tc,k:'b',m:base,d:dd});
         // 오르골 아르페지오 쇠빗 반주

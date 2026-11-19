@@ -29,9 +29,24 @@ PC 모니터·태블릿·스마트폰 화면에 켜두기 좋은 **인터랙티�
   - **오너먼트 클릭**: 해당 방울 반짝임 + 같은 색 불꽃
   - **산타 썰매 클릭**: 별가루 폭포 + 썰매 방울 소리
   - **상단 밤하늘 클릭 (산타 대기 중일 때)**: 산타 썰매 즉시 출격!
-- **캐럴 합성 & 화면 꺼짐 방지**
-  - 퍼블릭 도메인 캐럴 3곡(*징글벨*, *고요한 밤 거룩한 밤*, *We Wish You a Merry Christmas*)을 Web Audio API로 실시간 합성하며, 박자에 맞춰 전구와 장식이 반응합니다.
-  - Screen Wake Lock API로 켜두기 용도를 지원하고, `prefers-reduced-motion` 접근성 설정과 저사양 기기 자동 입자 조절을 포함합니다.
+- **기계식 오르골 캐럴 6곡 & 화면 꺼짐 방지**
+  - 외부 음원 파일 없이 Web Audio API로 **쇠빗(Steel Tine) 비정수배 금속 배음 · 실린더 핀 튕김 클릭 · 우드 울림통 리버브**를 실시간 합성해 영롱한 오르골 음색으로 연주합니다.
+  - 박자에 맞춰 트리 전구·오너먼트·꼭대기 별이 반응하며, Screen Wake Lock API로 켜두기 용도를 지원합니다.
+
+---
+
+## 🎵 수록 오르골 캐럴 (퍼블릭 도메인 6곡)
+
+모든 곡은 저작권이 만료된 퍼블릭 도메인(Public Domain) 명곡으로 구성되어 있으며 순서대로 무한 반복 재생됩니다.
+
+| # | 곡명 | 원곡 / 작곡 | 분위기 |
+|---|---|---|---|
+| 1 | **징글벨** (Jingle Bells) | James Lord Pierpont (1857) | 경쾌하고 밝은 대표 캐럴 |
+| 2 | **별사탕 요정의 춤** (Dance of the Sugar Plum Fairy) | P. I. Tchaikovsky — *호두까기 인형* (1892) | 신비롭고 영롱한 오르골·첼레스타 대표곡 |
+| 3 | **고요한 밤 거룩한 밤** (Silent Night) | Franz Xaver Gruber (1818) | 포근하고 잔잔한 6/8박자 아르페지오 |
+| 4 | **그린슬리브스** (Greensleeves / What Child Is This?) | 16세기 영국 전통 민요·캐럴 | 아련하고 서정적인 겨울 밤 감성 |
+| 5 | **저 들 밖에 한밤중에** (The First Noel) | 영국 전통 캐럴 | 맑고 웅장한 3/4박자 크리스마스 송 |
+| 6 | **We Wish You a Merry Christmas** | 16세기 영국 전통 캐럴 | 따뜻하고 축제 같은 피날레 |
 
 ---
 
@@ -64,7 +79,7 @@ open xmas-tree/index.html
 **Starlight Carol Tree** is a zero-dependency, single-file interactive Christmas tree screensaver built with HTML5 Canvas 2D and Web Audio API.
 
 - **Live Demo**: https://sweetinsam-boop.github.io/xmas-tree/
-- **Highlights**: Seamless morphing between particle graphics and ASCII text mode, 6 cinematic camera scenes (`MERRY CHRISTMAS` morphing included), flying Santa & Rudolph sleigh across the distant sky, dynamic snowstorm & accumulation, interactive click/tap starbursts & chimes, and synthesized public-domain Christmas carols.
+- **Highlights**: Seamless morphing between particle graphics and ASCII text mode, 6 cinematic camera scenes (`MERRY CHRISTMAS` morphing included), flying Santa & Rudolph sleigh across the distant sky, dynamic snowstorm & accumulation, interactive click/tap starbursts & chimes, and a realistic **Web Audio Music Box (steel tine overtones + wood reverb)** playing 6 public-domain Christmas classics (*Jingle Bells*, *Dance of the Sugar Plum Fairy*, *Silent Night*, *Greensleeves*, *The First Noel*, *We Wish You a Merry Christmas*).
 
 ## 📄 License
 
