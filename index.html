@@ -45,9 +45,9 @@ body.nocursor{cursor:none}
 .panel h3{margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center}
 .panel h3:first-child{margin-top:0}
 .panel .stat{font-size:11px;color:rgba(238,243,255,.72);font-weight:400}
-.songs{display:flex;flex-direction:column;gap:4px}
+.songs{display:flex;flex-direction:column;gap:4px;max-height:232px;overflow-y:auto}
 .songs button,.chips button{font:inherit;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:9px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
-.songs button{text-align:left;padding:7px 10px;font-size:12.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.songs button{flex:none;text-align:left;padding:7px 10px;font-size:12.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .songs button:hover,.chips button:hover{background:rgba(255,255,255,.14)}
 .songs button.on,.chips button.on{background:rgba(255,210,122,.22);border-color:rgba(255,210,122,.65);color:var(--gold)}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
@@ -187,15 +187,20 @@ const SCENES=[
   {g:.2, gs:3,lp:0,yaw:.14, pitch:.06, dist:3.0, ty:.56,fx:'au'},     // 오로라·유성우 아래 캠프
   {g:0,  gs:0,lp:1,yaw:.16, pitch:.1,  dist:3.95,ty:.43,fx:'gl'},     // 스노우볼 속 트리
 ].filter(s=>!(RM&&s.burst));
-const SDUR=RM?32:20;
+const SDUR=RM?32:24;
 let cur=SCENES[0],order=[],sceneT0=0;
 function nextScene(T){
   if(!order.length){order=SCENES.slice().sort(()=>rnd()-.5);if(order[0]===cur)order.push(order.shift())}
+  lpA=cur.lp;gsA=cur.gs;mixM=0;
   cur=order.shift();sceneT0=T;burstStar=1;
   look=(look+1)%3;tmT=look===1?1:0;amT=look===2?1:0; // 장면마다 그래픽 → 문자 → ASCII 화면 순환
   palA=palB;palM=0;palB=rnd()<.3?0:1+(rnd()*5|0);
 }
 const cam={yaw:0,pitch:.12,dist:2.6,ty:.52,ys:.22};
+let lpA=0,gsA=0,mixM=1,tmR=0; // 전구 패턴·문자 세트 교체 진행도, TM의 선형 진행도
+const camV={ys:0,pitch:0,dist:0,ty:0};
+// 임계 감쇠 스프링: 출발과 도착이 모두 부드럽다(지수 추종은 출발이 튄다)
+function damp(k,target,tm,dt){const w=2/tm,x=w*dt,e=1/(1+x+.48*x*x+.235*x*x*x),c=cam[k]-target,t=(camV[k]+w*c)*dt;camV[k]=(camV[k]-w*t)*e;cam[k]=target+(c+t)*e}
 let look=0,palA=0,palB=0,palM=1; // 화면 종류와 트리 색 테마 전환
 let G=0,E=0,K=0,LP=0,burstStar=0,starP=0,TM=0,tmT=0; // TM: 0=그래픽 버전, 1=문자 버전
 const env=(u,a,b,c,d)=>{const s=x=>x<=0?0:x>=1?1:x*x*(3-2*x);return s((u-a)/(b-a))*(1-s((u-c)/(d-c)))};
@@ -298,10 +303,10 @@ function drawStar(){
   cx.strokeStyle='rgba(255,250,220,.8)';cx.lineWidth=1;cx.stroke();cx.restore();
   if(TM>.01){cx.save();cx.translate(x,y);cx.scale(.3+.7*Math.abs(Math.cos(T*1.1)),1);spr(glyphC('★','#ffd36b'),0,0,s*3,TM);cx.restore()}
   cx.globalCompositeOperation='lighter';spr(FLARE,x,y,s*(2.4+1.2*Math.sin(T*4)),.9*(1-TM*.8));
-  if(burstStar){burst(x,y,46,null,1.3);burstStar=0}
+  if(burstStar){starP=Math.max(starP,.8);burst(x,y,18,null,.9);burstStar=0}
 }
 // ---------- 특별 장면: 불꽃놀이 마을(fw) · 오로라 유성우 캠프(au) · 스노우볼(gl) ----------
-const FX={fw:0,au:0,gl:0};
+const FX={fw:0,au:0,gl:0},FXR={fw:0,au:0,gl:0}; // 부드럽게 만든 값 / 선형 진행도
 const GLOW=new Map(),glowC=c=>{let g=GLOW.get(c);if(!g)GLOW.set(c,g=glow(c));return g};
 // h<TM이면 문자, 아니면 빛점. 모든 특별 장면 입자가 그래픽↔문자 전환을 따른다
 function pt(h,ch,col,x,y,s,a){if(h<TM)spr(glyphC(ch,col),x,y,s*1.9,a);else spr(glowC(col),x,y,s*2,a)}
@@ -457,29 +462,28 @@ function globeGlass(f){
   cx.globalAlpha=f*.4;cx.strokeStyle='#fff';cx.lineCap='round';cx.lineWidth=r*.022;cx.beginPath();cx.arc(x,y,r*.88,PI*1.1,PI*1.36);cx.stroke();cx.lineWidth=r*.012;cx.beginPath();cx.arc(x,y,r*.9,PI*1.4,PI*1.45);cx.stroke();cx.restore();
 }
 // ---------- 화면 전체를 문자 격자로 다시 찍는 세 번째 화면(ASCII) ----------
-const RAMP=' .:-=+*#%@';let AM=0,amT=0,aN=0;
+const RAMP=' .:-=+*#%@';let AM=0,amT=0,aN=0,aN_w=0,aN_h=0;
+const aV=document.createElement('canvas'),aW=aV.getContext('2d'); // 칸별 덮개
 const aS=document.createElement('canvas'),aG=aS.getContext('2d',{willReadFrequently:true}),aMk=document.createElement('canvas'),aM=aMk.getContext('2d');
 function drawAscii(){
   if(AM<.01)return;
   const fs=Math.max(8,Math.min(W,H)/(coarse?64:88)),q=Math.min(DPR,1.5),font=`700 ${fs*q}px ui-monospace,Menlo,"Courier New",monospace`;
   if(aN++%2===0){ // 두 프레임에 한 번만 갱신
     aM.font=font;const cw=aM.measureText('M').width,C=Math.ceil(W*q/cw),L=Math.ceil(H/fs),mw=Math.ceil(W*q),mh=Math.ceil(H*q);
-    if(aS.width!==C||aS.height!==L){aS.width=C;aS.height=L}
+    if(aS.width!==C||aS.height!==L){aS.width=aV.width=C;aS.height=aV.height=L}
     if(aMk.width!==mw||aMk.height!==mh){aMk.width=mw;aMk.height=mh}
     aG.globalCompositeOperation='copy';aG.drawImage(cv,0,0,cv.width,cv.height,0,0,C,L);
-    const im=aG.getImageData(0,0,C,L),d=im.data;
+    const im=aG.getImageData(0,0,C,L),d=im.data,vi=aW.createImageData(C,L),vd=vi.data;
     aM.globalCompositeOperation='source-over';aM.clearRect(0,0,mw,mh);aM.font=font;aM.textBaseline='top';aM.fillStyle='#fff';
-    for(let y=0;y<L;y++){let s='';for(let x=0;x<C;x++){const o=(y*C+x)*4,v=Math.max(d[o],d[o+1],d[o+2]),n=Math.max(0,v-62)/193;
+    for(let y=0;y<L;y++){let s='';for(let x=0;x<C;x++){const o=(y*C+x)*4,v=Math.max(d[o],d[o+1],d[o+2]),hh=(((x*73856093)^(y*19349663))>>>0)%997/997,rv=Math.max(0,Math.min(1,(AM*1.7-.45*y/L-.25*hh)*1.4)),n=Math.max(0,v-62)/193;
       s+=RAMP[Math.min(9,Math.sqrt(n)*10|0)];
-      if(v>0){const b=Math.max(1,Math.min(255,90+v*1.1)/v);d[o]=Math.min(255,d[o]*b);d[o+1]=Math.min(255,d[o+1]*b);d[o+2]=Math.min(255,d[o+2]*b)}}
+      if(v>0){const b=Math.max(1,Math.min(255,90+v*1.1)/v);d[o]=Math.min(255,d[o]*b);d[o+1]=Math.min(255,d[o+1]*b);d[o+2]=Math.min(255,d[o+2]*b)}d[o+3]=rv*255;vd[o]=4;vd[o+1]=5;vd[o+2]=13;vd[o+3]=rv*242}
       aM.fillText(s,0,y*fs*q)}
-    aG.putImageData(im,0,0);
+    aG.putImageData(im,0,0);aW.putImageData(vi,0,0);aN_w=C*cw/q;aN_h=L*fs;
     aM.globalCompositeOperation='source-in';aM.imageSmoothingEnabled=false;aM.drawImage(aS,0,0,C*cw,L*fs*q);
   }
-  const h=H*AM; // 터미널처럼 위에서 아래로 한 줄씩 인쇄
-  cx.globalCompositeOperation='source-over';cx.globalAlpha=.95;cx.fillStyle='#04050d';cx.fillRect(0,0,W,h);
-  cx.globalAlpha=1;cx.drawImage(aMk,0,0,aMk.width,h*q,0,0,W,h);
-  if(AM<.99){cx.globalCompositeOperation='lighter';cx.globalAlpha=.8;cx.fillStyle='#9fe8c0';cx.fillRect(0,h-1.5,W,3)}
+  cx.globalCompositeOperation='source-over';cx.globalAlpha=1; // 칸마다 다른 때에 위에서 아래로 번지듯 바뀐다
+  cx.drawImage(aV,0,0,aN_w,aN_h);cx.drawImage(aMk,0,0,W,H);
 }
 
 function drawReindeer(rx,ry,ph,rudolph){
@@ -628,20 +632,29 @@ function drawSanta(dt){
   cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
 }
 
+function lightB(p,i,tn){
+  if(p===0)return .2+.8*(.5+.5*Math.sin(T*2.3+lP[i]))**3;
+  if(p===1)return .12+.9*(.5+.5*Math.cos(tn*30+lA[i]-T*6))**6;
+  if(p===2)return .6+.4*Math.sin(T*3+tn*8);
+  return (Math.floor(T*2.4)+i)%3===0?1:.18;
+}
+const lightC=(p,i,tn)=>p===2?(lC[i]+Math.floor(T*1.6+tn*5))%6:lC[i];
 let animStopped=false,animRaf=0;
 function frame(now){
   if(animStopped)return;
   T=now/1000;const dt=Math.min(.05,Math.max(0,T-lt||.016));lt=T;
   if(!sceneT0)sceneT0=T;
   if(T-sceneT0>SDUR)nextScene(T);
-  const u=(T-sceneT0)/SDUR,k=1-Math.exp(-dt*.55),sl=RM?.4:1;
-  cam.ys+=(cur.yaw*sl-cam.ys)*k;cam.yaw+=cam.ys*dt;
-  cam.pitch+=(cur.pitch+Math.sin(T*.13)*.07-cam.pitch)*k;
-  cam.dist+=(cur.dist+Math.sin(T*.09)*.12-cam.dist)*k;
-  cam.ty+=(cur.ty-cam.ty)*k;
-  G+=(cur.g-G)*(1-Math.exp(-dt*.7));LP=cur.lp;TM+=(tmT-TM)*(1-Math.exp(-dt*1.2));palM=Math.min(1,palM+dt/4);
-  AM+=Math.sign(amT-AM)*Math.min(Math.abs(amT-AM),dt/2.2);
-  for(const n in FX)FX[n]+=((cur.fx===n?1:0)-FX[n])*(1-Math.exp(-dt*.9));
+  const u=(T-sceneT0)/SDUR,sl=RM?.4:1;
+  damp('ys',cur.yaw*sl,2.6,dt);cam.yaw+=cam.ys*dt;
+  damp('pitch',cur.pitch+Math.sin(T*.13)*.07,2.8,dt);
+  damp('dist',cur.dist+Math.sin(T*.09)*.12,2.8,dt);
+  damp('ty',cur.ty,2.8,dt);
+  G+=(cur.g-G)*(1-Math.exp(-dt*.7));LP=cur.lp;palM=Math.min(1,palM+dt/6);mixM=Math.min(1,mixM+dt/3.5);
+  const ramp=(v,to,sec)=>v+Math.sign(to-v)*Math.min(Math.abs(to-v),dt/sec);
+  tmR=ramp(tmR,tmT,4);TM=sm(tmR);AM=ramp(AM,amT,3.6);
+  for(const n in FXR){const on=cur.fx===n,busy=Object.keys(FXR).some(m=>m!==n&&FXR[m]>.3); // 앞 장면이 걷힌 뒤 다음 배경이 들어온다
+    if(!on||!busy)FXR[n]=ramp(FXR[n],on?1:0,on?3.4:2.6);FX[n]=sm(FXR[n])}
   E=cur.burst?env(u,.15,.38,.6,.85):0;K=cur.text?env(u,.18,.34,.68,.84):0;
   starP*=Math.exp(-dt*3);for(const o of B)o.p*=Math.exp(-dt*2.5);
   // 소리를 끈 상태에서도 장식이 박자에 맞춰 반응하도록 가상 박자
@@ -663,7 +676,7 @@ function frame(now){
   cx.globalCompositeOperation='lighter';
   proj(0,.02,0);if(PZ>0)spr(LGL[1],PX,PY,FOC/PZ*1.3,.16);
   proj(0,0,0);if(PZ>0){const w=FOC/PZ*2.1,h=w*Math.max(.12,Math.abs(Math.sin(cam.pitch))*.9);cx.globalAlpha=(.05+.22*acc)*(1-K)*(1-FX.gl*.8);cx.drawImage(DOT[8],PX-w/2,PY-h/2,w,h)} // 눈 이불
-  for(let i=0;i<N.gr;i++){if(grR[i]>.35+.6*acc||FX.gl>.4&&grR[i]>.5)continue;proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*(.25+.35*acc)*(1-K));else spr(DOT[8],PX,PY,gs*(1+acc),depth(PZ)*(.2+.35*acc)*(1-K))}}
+  for(let i=0;i<N.gr;i++){if(grR[i]>.35+.6*acc)continue;const gk=grR[i]>.5?1-FX.gl:1;proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*(.25+.35*acc)*(1-K)*gk);else spr(DOT[8],PX,PY,gs*(1+acc),depth(PZ)*(.2+.35*acc)*(1-K)*gk)}}
 
   for(const o of items){const ox=Math.cos(o.a)*o.r,oz=Math.sin(o.a)*o.r;o.z=(ox-CX)*fx+(o.y-CY)*fy+(oz-CZ)*fz}
   items.sort((a,b)=>b.z-a.z);
@@ -671,7 +684,7 @@ function frame(now){
   for(const o of items)if(o.z>cam.dist)drawItem(o);
 
   cx.globalCompositeOperation='lighter';
-  const ch=GL[cur.gs],nc=ch.length,txtS=Math.max(4,Math.min(W,H)*.011),GX=Math.max(G,TM);
+  const chB=GL[cur.gs],chA=GL[gsA],txtS=Math.max(4,Math.min(W,H)*.011),GX=Math.max(G,TM);
   for(let i=0;i<N.f;i++){
     if(fQ[i]>Q)continue;
     place(fA[i],fR[i],fY[i],fH[i]);proj(WX,WY,WZ);if(PZ<0)continue;
@@ -679,7 +692,7 @@ function frame(now){
     if(K>0){x+=(TX[i]-x)*K;y+=(TY[i]-y)*K;d+=(1-d)*K;s+=(txtS-s)*K}
     const tw=.5+.5*Math.sin(T*fS[i]+fP[i]),sp=tw**10,ci=K>.5?6+i%3:fC[i]===5?5:palCol(fG[i]<palM?palB:palA,fC[i],fY[i]);
     const a=d*(.22+.8*sp)+K*.25;
-    if(fG[i]<GX)spr(glyph(ch[i%nc],ci),x,y,s*(2.1+.7*TM),a*(.75+.25*TM));else spr(DOT[ci],x,y,s*2.3,a);
+    if(fG[i]<GX)spr(glyph(fQ[i]<mixM*1.01?chB[i%chB.length]:chA[i%chA.length],ci),x,y,s*(2.1+.7*TM),a*(.75+.25*TM));else spr(DOT[ci],x,y,s*2.3,a);
     if(i>=40&&fH[i]<acc*.22&&TM<.99)spr(DOT[8],x,y-s*.35,s*1.1,a*.4*(1-K)*(1-TM)); // 가지에 쌓인 눈
     if(sp>.8&&d>.55){spr(FLARE,x,y,s*5.5,(sp-.8)*4.5*d*(1-TM));if(TM>.01)spr(glyph('✦',8),x,y,s*3.2,(sp-.8)*5*d*TM)}
   }
@@ -691,11 +704,9 @@ function frame(now){
   }
   for(let i=0;i<N.l;i++){
     place(lA[i],lR[i],lY[i],lH[i]);proj(WX,WY,WZ);if(PZ<0)continue;
-    let b,ci=lC[i];const tn=(lY[i]-.07)/.93;
-    if(LP===0)b=.2+.8*(.5+.5*Math.sin(T*2.3+lP[i]))**3;
-    else if(LP===1)b=.12+.9*(.5+.5*Math.cos(tn*30+lA[i]-T*6))**6;
-    else if(LP===2){ci=(lC[i]+Math.floor(T*1.6+tn*5))%6;b=.6+.4*Math.sin(T*3+tn*8)}
-    else b=((Math.floor(T*2.4)+i)%3===0)?1:.18;
+    const tn=(lY[i]-.07)/.93,mx=sm(mixM);
+    let b=lightB(LP,i,tn),ci=lightC(lH[i]<mixM?LP:lpA,i,tn);
+    if(mx<1)b=lightB(lpA,i,tn)*(1-mx)+b*mx; // 이전 패턴에서 새 패턴으로 섞으며 넘어간다
     b+=lF[i];if(lF[i]>.35)ci=lFC[i];lF[i]*=Math.exp(-dt*3);
     const d=depth(PZ)*(1-K*.85),s=Math.min(80,FOC/PZ*.055)*(.6+.45*b);
     if(lH[i]<TM){spr(LGL[ci],PX,PY,s*.8,d*b*.35);spr(glyphC(LCH[i%4],LC[ci]),PX,PY,s*.8,d*b*1.1)}
@@ -748,7 +759,7 @@ function frame(now){
 }
 animRaf=requestAnimationFrame(frame);
 
-// ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브, 퍼블릭 도메인 6곡) ----------
+// ---------- 캐럴 (Web Audio 오르골 합성: 쇠빗 배음·핀 틱·우드 울림통 리버브, 퍼블릭 도메인 15곡) ----------
 const SONGS=[
  {title:'Jingle Bells · 징글벨',beat:.37,reps:2,tr:12,arp:1,
   mel:'E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 G4:1 G4:1 F4:1 D4:1 C4:4',
@@ -768,6 +779,33 @@ const SONGS=[
  {title:'We Wish You a Merry Christmas',beat:.36,reps:2,tr:12,arp:1,
   mel:'G3:1 C4:1 C4:.5 D4:.5 C4:.5 B3:.5 A3:1 A3:1 A3:1 D4:1 D4:.5 E4:.5 D4:.5 C4:.5 B3:1 G3:1 G3:1 E4:1 E4:.5 F4:.5 E4:.5 D4:.5 C4:1 A3:1 G3:.5 G3:.5 A3:1 D4:1 B3:1 C4:3',
   ch:'R:1 C3:3 F2:3 D3:3 G2:3 E3:3 A2:3 F2:2 G2:1 C3:3'},
+ {title:'Deck the Halls · 아름답게 장식하세',beat:.32,reps:2,tr:12,arp:1,
+  mel:'G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 D4:.5 E4:.5 F4:.5 D4:.5 E4:1.5 D4:.5 C4:1 B3:1 C4:2 G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 D4:.5 E4:.5 F4:.5 D4:.5 E4:1.5 D4:.5 C4:1 B3:1 C4:2 D4:1.5 E4:.5 F4:1 D4:1 E4:1.5 F4:.5 G4:1 D4:1 E4:.5 F#4:.5 G4:1 A4:.5 B4:.5 C5:1 B4:1 A4:1 G4:2 G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 A4:.5 A4:.5 A4:.5 A4:.5 G4:1.5 F4:.5 E4:1 D4:1 C4:2',
+  ch:'C3M:4 C3M:4 G27:2 C3M:2 G27:2 C3M:2 C3M:4 C3M:4 G27:2 C3M:2 G27:2 C3M:2 G27:4 C3M:4 C3M:2 D37:2 D37:2 G2M:2 C3M:4 C3M:4 F2M:2 C3M:2 G27:2 C3M:2'},
+ {title:'Joy to the World · 기쁘다 구주 오셨네',beat:.36,reps:1,tr:12,arp:1,
+  mel:'C5:2 B4:1.5 A4:.5 G4:3 F4:1 E4:2 D4:2 C4:3 G4:1 A4:3 A4:1 B4:3 B4:1 C5:3 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:.5 E4:1 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:.5 E4:1 E4:1 E4:1 E4:1 E4:1 E4:.5 F4:.5 G4:3 F4:.5 E4:.5 D4:1 D4:1 D4:1 D4:.5 E4:.5 F4:3 E4:.5 D4:.5 C4:1 C5:2 A4:1 G4:1.5 F4:.5 E4:1 F4:1 E4:2 D4:2 C4:4',
+  ch:'C3M:4 C3M:4 C3M:2 G27:2 C3M:4 F2M:4 G27:4 C3M:4 C3M:4 C3M:4 C3M:4 C3M:4 C3M:4 C3M:4 G27:4 G27:4 C3M:2 F2M:2 C3M:4 C3M:2 G27:2 C3M:4'},
+ {title:'O Tannenbaum · 소나무야',beat:.58,reps:1,tr:12,arp:1,
+  mel:'C4:.5 F4:.75 F4:.25 F4:1.5 G4:.5 A4:.75 A4:.25 A4:1.5 A4:.5 G4:.5 A4:.5 Bb4:1 E4:1 G4:1 F4:1 R:.5 C4:.5 F4:.75 F4:.25 F4:1.5 G4:.5 A4:.75 A4:.25 A4:1.5 A4:.5 G4:.5 A4:.5 Bb4:1 E4:1 G4:1 F4:1 R:.5 C5:.5 C5:.75 A4:.25 D5:1.5 C5:.5 C5:.75 Bb4:.25 Bb4:1.5 Bb4:.5 Bb4:.75 G4:.25 C5:1.5 Bb4:.5 Bb4:.75 A4:.25 A4:1.5 C4:.5 F4:.75 F4:.25 F4:1.5 G4:.5 A4:.75 A4:.25 A4:1.5 A4:.5 G4:.5 A4:.5 Bb4:1 E4:1 G4:1 F4:1.5',
+  ch:'R:.5 F2M:3 F2M:3 C37:3 F2M:3 F2M:3 F2M:3 C37:3 F2M:3 F2M:3 G2m:3 C37:3 F2M:3 F2M:3 F2M:3 C37:3 F2M:2.5'},
+ {title:'God Rest Ye Merry, Gentlemen · 만백성 기뻐하여라',beat:.37,reps:1,tr:12,arp:1,
+  mel:'E4:1 E4:1 B4:1 B4:1 A4:1 G4:1 F#4:1 E4:1 D4:1 E4:1 F#4:1 G4:1 A4:1 B4:3 E4:1 E4:1 B4:1 B4:1 A4:1 G4:1 F#4:1 E4:1 D4:1 E4:1 F#4:1 G4:1 A4:1 B4:3 B4:1 C5:1 A4:1 B4:1 C5:1 D5:1 E5:1 B4:1 A4:1 G4:1 E4:1 F#4:1 G4:1 A4:2 G4:1 A4:1 B4:2 C5:1 B4:1 B4:1 A4:1 G4:1 F#4:1 E4:2 G4:.5 F#4:.5 E4:1 A4:2 G4:1 A4:1 B4:1 C5:1 D5:1 E5:1 B4:1 A4:1 G4:1 F#4:1 E4:3',
+  ch:'R:1 E2m:4 E2m:4 E2m:4 B2m:4 E2m:4 E2m:4 E2m:4 B2m:4 A2m:4 G2M:4 E2m:4 D3M:4 G2M:4 B27:4 E2m:4 D3M:4 G2M:4 B27:4 E2m:3'},
+ {title:'Shchedryk · 종소리 캐럴 (우크라이나 민요 선율)',beat:.34,reps:2,tr:12,arp:1,
+  mel:'Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 D5:1 C5:.5 D5:.5 Bb4:1 D5:1 C5:.5 D5:.5 Bb4:1 D5:1 C5:.5 D5:.5 Bb4:1 D5:1 C5:.5 D5:.5 Bb4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 Bb4:1 A4:.5 Bb4:.5 G4:1 G4:3',
+  ch:'G2m:3 G2m:3 G2m:3 G2m:3 G2m:3 F2M:3 Eb2M:3 D3m:3 G2m:3 F2M:3 Eb2M:3 D3m:3 G2m:3 Eb2M:3 D3m:3 G2m:3'},
+ {title:'O Come, All Ye Faithful · 참 반가운 성도여',beat:.46,reps:1,tr:12,arp:1,
+  mel:'G4:1 G4:2 D4:1 G4:1 A4:2 D4:2 B4:1 A4:1 B4:1 C5:1 B4:2 A4:1 G4:1 G4:2 F#4:1 E4:1 F#4:1 G4:1 A4:1 B4:1 F#4:2 E4:1.5 D4:.5 D4:3 R:1 D5:2 C5:1 B4:1 C5:2 B4:2 A4:1 B4:1 G4:1 A4:1 F#4:1.5 E4:.5 D4:1 G4:1 G4:1 F#4:1 G4:1 A4:1 G4:2 D4:1 B4:1 B4:1 A4:1 B4:1 C5:1 B4:2 A4:1 B4:1 C5:1 B4:1 A4:1 G4:1 F#4:2 G4:1 C5:1 B4:2 A4:1.5 G4:.5 G4:3',
+  ch:'R:1 G2M:4 D3M:4 G2M:4 G2M:2 D3M:1 G2M:1 E2m:4 D3M:4 D3M:2 A27:2 D3M:4 G2M:4 C3M:2 G2M:2 D37:4 D3M:4 G2M:4 G2M:4 G2M:4 G2M:2 D37:2 C3M:2 A2m:2 D37:2 G2M:1 C3M:1 G2M:2 D37:2 G2M:3'},
+ {title:'Angels We Have Heard on High · 천사들의 노래가',beat:.42,reps:1,tr:12,arp:1,
+  mel:'A4:1 A4:1 A4:1 C5:1 C5:1.5 Bb4:.5 A4:2 A4:1 G4:1 A4:1 C5:1 A4:1.5 G4:.5 F4:2 A4:1 A4:1 A4:1 C5:1 C5:1.5 Bb4:.5 A4:2 A4:1 G4:1 A4:1 C5:1 A4:1.5 G4:.5 F4:2 C5:2 D5:.5 C5:.5 Bb4:.5 A4:.5 Bb4:2 C5:.5 Bb4:.5 A4:.5 G4:.5 A4:2 Bb4:.5 A4:.5 G4:.5 F4:.5 G4:1.5 C4:.5 C4:2 F4:1 G4:1 A4:1 Bb4:1 A4:2 G4:2 C5:2 D5:.5 C5:.5 Bb4:.5 A4:.5 Bb4:2 C5:.5 Bb4:.5 A4:.5 G4:.5 A4:2 Bb4:.5 A4:.5 G4:.5 F4:.5 G4:1.5 C4:.5 C4:2 F4:1 G4:1 A4:1 Bb4:1 A4:2 G4:2 F4:4',
+  ch:'F2M:4 C37:2 F2M:2 F2M:4 C37:2 F2M:2 F2M:4 C37:2 F2M:2 F2M:4 C37:2 F2M:2 F2M:4 G2m:4 F2M:4 C3M:4 F2M:4 F2M:2 C37:2 F2M:4 G2m:4 F2M:4 C3M:4 F2M:4 F2M:2 C37:2 F2M:4'},
+ {title:'Hark! The Herald Angels Sing · 천사 찬송하기를',beat:.4,reps:1,tr:12,arp:1,
+  mel:'D4:1 G4:1 G4:1.5 F#4:.5 G4:1 B4:1 B4:1 A4:1 D5:1 D5:1 D5:1.5 C5:.5 B4:1 A4:1 B4:2 D4:1 G4:1 G4:1.5 F#4:.5 G4:1 B4:1 B4:1 A4:1 D5:1 A4:1 A4:1.5 F#4:.5 F#4:1 E4:1 D4:2 D5:1 D5:1 D5:1 G4:1 C5:1 B4:1 B4:1 A4:1 D5:1 D5:1 D5:1 G4:1 C5:1 B4:1 B4:1 A4:1 E5:1 E5:1 E5:1 D5:1 C5:1 B4:1 C5:2 A4:1 B4:.5 C5:.5 D5:1.5 G4:.5 G4:1 A4:1 B4:2 E5:1.5 E5:.5 E5:1 D5:1 C5:1 B4:1 C5:2 A4:1 B4:.5 C5:.5 D5:1.5 G4:.5 G4:1 A4:1 G4:2',
+  ch:'G2M:4 G2M:3 D3M:1 G2M:4 G2M:1 D3M:1 G2M:2 G2M:4 G2M:3 D3M:1 D3M:4 A27:2 D3M:2 G2M:4 A2m:1 G2M:2 D3M:1 G2M:4 A2m:1 G2M:2 D3M:1 C3M:4 A2m:4 D37:2 G2M:2 G2M:1 D37:1 G2M:2 C3M:4 A2m:4 D37:2 G2M:2 D37:2 G2M:2'},
+ {title:'Auld Lang Syne · 올드 랭 사인',beat:.5,reps:1,tr:12,arp:1,
+  mel:'C4:1 F4:1.5 F4:.5 F4:1 A4:1 G4:1.5 F4:.5 G4:1 A4:1 F4:1.5 F4:.5 A4:1 C5:1 D5:3 D5:1 C5:1.5 A4:.5 A4:1 F4:1 G4:1.5 F4:.5 G4:1 A4:1 F4:1.5 D4:.5 D4:1 C4:1 F4:3 D5:1 C5:1.5 A4:.5 A4:1 F4:1 G4:1.5 F4:.5 G4:1 D5:1 C5:1.5 A4:.5 A4:1 C5:1 D5:3 D5:1 C5:1.5 A4:.5 A4:1 F4:1 G4:1.5 F4:.5 G4:1 A4:1 F4:1.5 D4:.5 D4:1 C4:1 F4:3',
+  ch:'R:1 F2M:4 C37:4 F2M:4 Bb2M:4 F2M:4 C37:4 Bb2M:2 C37:2 F2M:4 F2M:4 C37:4 F2M:4 Bb2M:4 F2M:4 C37:4 Bb2M:2 C37:2 F2M:3'},
 ];
 const NOTE={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 // 오르골 화성 보이싱 (장조/단조/세븐스 분산 화음)
@@ -793,7 +831,7 @@ const SONG_EV=SONGS.map(s=>{
       if(n!=='R'){
         const q=n.slice(-1),hasQ=q==='m'||q==='M'||q==='7',note=hasQ?n.slice(0,-1):n;
         const m=midi(note),v=VOICING[hasQ?q:note[0]]||VOICING.M,base=m<48?m+12:m;
-        ev.push({t:tc,k:'b',m:base,d:dd});
+        ev.push({t:tc,k:'b',m:base,d:dd,v:v.slice(0,4)});
         const steps=s.arp===2?Math.min(6,Math.round(beats)):Math.min(4,Math.round(beats));
         const stepD=dd/steps;
         for(let k=1;k<steps;k++){const iv=v[k%v.length];ev.push({t:tc+k*stepD,k:'a',m:base+iv,d:stepD*2.2})}
@@ -819,19 +857,17 @@ try{
 }catch(e){}
 function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong}))}catch(e){}}
 
-let AC=null,master,songBus,send,revSend,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
-function mkReverb(sec=2.1,decay=3.1){
-  const sr=AC.sampleRate,len=sr*sec|0,buf=AC.createBuffer(2,len,sr);
-  for(let ch=0;ch<2;ch++){
-    const d=buf.getChannelData(ch);let lp=0;
-    for(let i=0;i<len;i++){
-      const t=i/len,env=Math.pow(1-t,decay);
-      const raw=(rnd()*2-1)*env;
-      lp+=(raw-lp)*(.34*(1-t*.75)+.06);
-      d[i]=lp;
+let AC=null,master,songBus,send,revSend,revSend0,padBus,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
+// 좌우가 서로 다른 잔향: 고음이 먼저 사라지고 저음이 오래 남는 나무 방
+function mkReverb(){
+  const sr=AC.sampleRate,len=sr*3.2|0,pre=sr*.016|0,buf=AC.createBuffer(2,len,sr);
+  for(let c=0;c<2;c++){
+    const d=buf.getChannelData(c);let lo=0;
+    for(let i=pre;i<len;i++){
+      const t=(i-pre)/sr,n=rnd()*2-1;lo+=(n-lo)*.12;
+      d[i]=(lo*2.2*Math.exp(-t*2.3)+(n-lo)*.55*Math.exp(-t*5.2))*Math.min(1,t/.03)*Math.min(1,(len-i)/(sr*.2));
     }
-    // 나무 울림통·실내 초기 반사음
-    [0.011,0.021,0.034,0.049].forEach((rt,idx)=>{const k=(rt+(ch?.0025:0))*sr|0;if(k<len)d[k]+=((idx%2?1:-1)*.2)});
+    [.0093,.0151,.0227,.0311,.0427,.0563].forEach((rt,j)=>{const k=pre+((rt+c*.0031)*sr|0);d[k]+=(j%2?-1:1)*.5*.82**j});
   }
   return buf;
 }
@@ -845,6 +881,8 @@ function resetSongBus(){
     const old=songBus,now=AC.currentTime;
     try{old.gain.cancelScheduledValues(now);old.gain.setValueAtTime(old.gain.value,now);old.gain.linearRampToValueAtTime(.0001,now+.08);setTimeout(()=>{try{old.disconnect()}catch(e){}},140)}catch(e){}
   }
+  for(const[tap]of padTaps)tap.gain.setTargetAtTime(0,AC.currentTime,.04);
+  padTaps.length=0;
   songBus=AC.createGain();songBus.gain.value=1;songBus.connect(master);
 }
 function pickNextSong(){
@@ -858,21 +896,23 @@ function pickNextSong(){
   }
   return (curSong+1)%SONGS.length;
 }
-function initAudio(){
-  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){} // iOS 무음 스위치에서도 재생
-  AC=new (window.AudioContext||window.webkitAudioContext)();
+function buildGraph(){
   const comp=AC.createDynamicsCompressor();
   comp.threshold.value=-15;comp.knee.value=16;comp.ratio.value=3.5;comp.attack.value=.004;comp.release.value=.16;
   // 오르골 나무 울림통 공명(380Hz 살짝 보강) + 날카로운 초고음 다듬기
   const wood=AC.createBiquadFilter();wood.type='peaking';wood.frequency.value=380;wood.Q.value=1.2;wood.gain.value=3.2;
   const silk=AC.createBiquadFilter();silk.type='highshelf';silk.frequency.value=6500;silk.gain.value=-3;
   master=AC.createGain();master.gain.value=.76;
-  master.connect(wood);wood.connect(silk);silk.connect(comp);comp.connect(AC.destination);
+  master.connect(wood);wood.connect(silk);silk.connect(comp);
+  // 여러 음이 겹칠 때 찌그러지지 않게 마지막에 한 번 더 눌러 준다
+  const lim=AC.createDynamicsCompressor();lim.threshold.value=-4;lim.knee.value=2;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.12;
+  comp.connect(lim);lim.connect(AC.destination);
+  padBus=AC.createBiquadFilter();padBus.type='lowpass';padBus.frequency.value=1100;padBus.Q.value=.3;padBus.connect(master);padBus.connect(revSend0=AC.createGain());
   // 따뜻한 우드 룸 스테레오 리버브
-  revSend=AC.createGain();revSend.gain.value=.38;
-  const conv=AC.createConvolver();conv.buffer=mkReverb(2.1,3.1);
+  revSend=AC.createGain();revSend.gain.value=.34;
+  const conv=AC.createConvolver();conv.buffer=mkReverb();
   const revHP=AC.createBiquadFilter();revHP.type='highpass';revHP.frequency.value=260;
-  revSend.connect(conv);conv.connect(revHP);revHP.connect(master);
+  revSend0.gain.value=.5;revSend0.connect(conv);revSend.connect(conv);conv.connect(revHP);revHP.connect(master);
   // 아주 은은한 공간 잔향 딜레이
   send=AC.createGain();send.gain.value=.12;
   const dl=AC.createDelay(1),fb=AC.createGain(),dlLP=AC.createBiquadFilter();
@@ -880,6 +920,11 @@ function initAudio(){
   send.connect(dl);dl.connect(dlLP);dlLP.connect(fb);fb.connect(dl);dlLP.connect(master);dlLP.connect(revSend);
   const len=AC.sampleRate*.06|0;noise=AC.createBuffer(1,len,AC.sampleRate);const ch=noise.getChannelData(0);for(let i=0;i<len;i++)ch[i]=rnd()*2-1;
   resetSongBus();
+}
+function initAudio(){
+  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){} // iOS 무음 스위치에서도 재생
+  AC=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});
+  buildGraph();
   if(playMode==='rnd'&&!rndBag.length){curSong=rnd()*SONGS.length|0}
   songStart=AC.currentTime+.25;evI=0;playedCount=0;songDone=false;
   syncPanel();
@@ -887,40 +932,57 @@ function initAudio(){
 }
 function env2(g,at,peak,a,end){g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(peak,at+a);g.gain.exponentialRampToValueAtTime(.0001,Math.max(at+a+.02,end))}
 function osc(type,f,at,end,dest,detune=0){const o=AC.createOscillator();o.type=type;o.frequency.value=f;if(detune)o.detune.value=detune;o.connect(dest);o.start(at);o.stop(end+.05);return o}
-// 진짜 오르골 쇠빗(Steel Tine) 합성: 맑은 사인 기본음 + 외팔보 비정수배 금속 배음(2.76x, 5.4x) + 핀 튕김 틱
-function playTine(m,at,vol,dur,dest=songBus||master){
-  const f=hz(m),t=at+(rnd()-.5)*.01,ring=Math.max(1.2,Math.min(3.2,dur*2.4));
-  // 쇠빗 배치처럼 저음은 왼쪽, 고음은 오른쪽으로 미세 패닝
-  const pan=Math.max(-.42,Math.min(.42,(m-72)*.022));
-  const bus=panTo(pan,dest);
-  // 1) 깨끗하고 길게 여운이 남는 기본음
-  const g1=AC.createGain();env2(g1,t,vol,.003,t+ring);
-  g1.connect(bus);g1.connect(revSend);g1.connect(send);
-  osc('sine',f,t,t+ring,g1);
-  // 2) 오르골 특유의 영롱한 비정수배 금속 배음 (짧고 투명하게 반짝임)
-  if(f*2.756<12000){
-    const g2=AC.createGain();env2(g2,t,vol*.24,.002,t+.24);
-    g2.connect(bus);g2.connect(revSend);
-    osc('sine',f*2.756,t,t+.26,g2);
+// 오르골 쇠빗 한 음을 배음 10개로 미리 합성해 둔다. 음마다 발진기를 켜는 것보다 풍부하고 가볍다.
+// [배음비, 세기, 감쇠 배율]: 두 겹 기본음의 느린 맥놀이 + 외팔보 비정수배 금속 배음 + 나무통 저음
+const PART=[[1,.62,1],[1.0009,.38,.86],[.5,.05,.12],[2.001,.11,.5],[2.756,.17,.2],[3.01,.04,.3],[4.02,.025,.16],[5.404,.075,.085],[8.933,.035,.045],[13.34,.014,.025]];
+const TINE=new Map();
+function tineBuf(m){
+  const key=m+'@'+AC.sampleRate;let buf=TINE.get(key);if(buf)return buf;
+  const sr=AC.sampleRate,f=hz(m),ring=Math.max(1.4,Math.min(3.6,3.7-(m-50)*.045)),len=sr*ring|0;
+  buf=AC.createBuffer(1,len,sr);const d=buf.getChannelData(0);
+  for(const[ratio,amp,dec]of PART){
+    if(f*ratio>sr*.42)continue;
+    const w=TAU*f*ratio/sr,g=Math.exp(-4.6/(ring*dec*sr)),c2=2*Math.cos(w);
+    let s1=Math.sin(-w),s2=Math.sin(-2*w),a=amp; // 재귀 사인: 표본마다 sin을 부르지 않는다
+    for(let i=0;i<len;i++){const v=c2*s1-s2;s2=s1;s1=v;d[i]+=v*a;a*=g;if(a<1e-5)break}
   }
-  if(f*5.404<14000){
-    const g3=AC.createGain();env2(g3,t,vol*.09,.0015,t+.09);
-    g3.connect(bus);
-    osc('sine',f*5.404,t,t+.11,g3);
-  }
-  // 3) 실린더 핀이 쇠빗을 튕기는 미세한 아날로그 '틱' 클릭
-  if(noise){
-    const s=AC.createBufferSource();s.buffer=noise;
-    const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=Math.min(6500,Math.max(2400,f*2.2));bp.Q.value=3.5;
-    const cg=AC.createGain();env2(cg,t,vol*.14,.001,t+.016);
-    s.connect(bp);bp.connect(cg);cg.connect(bus);s.start(t);s.stop(t+.025);
-  }
+  let lp=0;const tick=sr*.012|0;
+  for(let i=0;i<tick;i++){lp+=(rnd()*2-1-lp)*.5;d[i]+=lp*.16*(1-i/tick)**3}       // 핀이 튕기는 소리
+  const thump=sr*.09|0;for(let i=0;i<thump;i++)d[i]+=Math.sin(TAU*185*i/sr)*.07*(1-i/thump)**3; // 나무통 울림
+  const at=sr*.0015|0,fade=sr*.06|0;let pk=0;
+  for(let i=0;i<at;i++)d[i]*=i/at;
+  for(let i=0;i<fade;i++)d[len-1-i]*=i/fade;
+  for(let i=0;i<len;i++)pk=Math.max(pk,Math.abs(d[i]));
+  for(let i=0;i<len;i++)d[i]/=pk;
+  TINE.set(key,buf);return buf;
 }
+const ringing=new Map(); // 같은 쇠빗을 다시 튕기면 앞 울림을 멈춘다
+function playTine(m,at,vol,dur,dest=songBus||master){
+  const t=Math.max(AC.currentTime,at+(rnd()-.5)*.008),s=AC.createBufferSource(),g=AC.createGain(),lp=AC.createBiquadFilter();
+  s.buffer=tineBuf(m);s.playbackRate.value=1+(rnd()-.5)*.0007;
+  lp.type='lowpass';lp.Q.value=.3;lp.frequency.value=Math.min(16000,2600+vol*52000); // 세게 튕길수록 밝게
+  const bus=panTo(Math.max(-.5,Math.min(.5,(m-74)*.024)),dest);
+  g.gain.setValueAtTime(vol*1.25,t);
+  const old=ringing.get(m);if(old&&old.t<t){old.g.gain.cancelScheduledValues(t);old.g.gain.setTargetAtTime(0,t,.012)}
+  ringing.set(m,{g,t});
+  g.gain.setTargetAtTime(0,t+Math.max(.9,dur*2.4),.35);
+  s.connect(lp);lp.connect(g);g.connect(bus);g.connect(revSend);g.connect(send);s.start(t);
+}
+// 화음 밑에 아주 작게 깔리는 현악 패드
+function playPad(m,v,at,dur){
+  const t=Math.max(AC.currentTime,at),end=t+dur+.5,g=AC.createGain();
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.011,t+Math.min(.5,dur*.4));g.gain.setValueAtTime(.011,t+dur*.8);g.gain.linearRampToValueAtTime(0,end);
+  // 곡 버스의 음량을 따라야 곡을 바꿀 때 함께 사라진다
+  const tap=AC.createGain();g.connect(tap);tap.connect(padBus);padTaps.push([tap,end]);
+  while(padTaps.length&&padTaps[0][1]<AC.currentTime)padTaps.shift();
+  for(const iv of v)for(const dt of[-5,5])osc('sawtooth',hz(m+iv),t,end,g,dt);
+}
+const padTaps=[];
 function play(e,at){
   if(e.title){noteQ.push({t:at,title:e.title});return}
   if(e.k==='n'){playTine(e.m,at,.21*(e.vel||1),e.d+.4);noteQ.push({t:at,m:e.m});return}
   if(e.k==='a'){playTine(e.m,at,.095,e.d+.3);return}
-  if(e.k==='b'){playTine(e.m,at,.14,e.d+.5);noteQ.push({t:at,beat:1});return}
+  if(e.k==='b'){playTine(e.m,at,.14,e.d+.5);playPad(e.m,e.v,at,e.d);noteQ.push({t:at,beat:1});return}
 }
 function sched(){
   if(!AC||AC.state!=='running'||songDone)return;
