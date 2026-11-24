@@ -52,6 +52,14 @@ body.nocursor{cursor:none}
 .songs button{flex:none;text-align:left;padding:7px 10px;font-size:12.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .songs button:hover,.chips button:hover{background:rgba(255,255,255,.14)}
 .songs button.on,.chips button.on{background:rgba(255,210,122,.22);border-color:rgba(255,210,122,.65);color:var(--gold)}
+.songs .row{display:flex;gap:4px;flex:none}
+.songs .row button{justify-content:center;min-width:38px;min-height:38px}
+.songs .row .name{flex:1;min-width:0;justify-content:flex-start}
+.songs .row.ex .name{opacity:.45}
+.songs button:disabled{opacity:.25;cursor:default}
+[hidden]{display:none!important}
+.edit{font:inherit;font-size:11.5px;color:var(--gold);background:none;border:1px solid rgba(255,210,122,.45);border-radius:999px;padding:6px 12px;cursor:pointer}
+.tools{display:flex;gap:5px;margin-top:6px}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
 .chips button{padding:5px 10px;font-size:12px;flex:1 1 auto;text-align:center}
 .sleep{position:fixed;inset:0;display:grid;place-items:center;background:rgba(4,5,13,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:30;opacity:0;pointer-events:none;transition:opacity .8s;font-family:var(--f-ui);text-align:center;padding:24px}
@@ -72,8 +80,12 @@ body.nocursor{cursor:none}
   <button id="fs" aria-label="전체 화면">⛶</button>
 </div>
 <aside class="panel" id="panel" aria-label="재생 및 타이머 설정">
-  <h3>곡 선택 <span class="stat" id="songStat"></span></h3>
+  <h3>재생목록 <span class="stat" id="songStat"></span><button class="edit" id="editList" aria-pressed="false">편집</button></h3>
   <div class="songs" id="songList"></div>
+  <div class="tools chips" id="listTools" hidden>
+    <button data-v="all">모두 넣기</button>
+    <button data-v="reset">처음 순서로</button>
+  </div>
   <h3>재생 순서</h3>
   <div class="chips" id="modeChips">
     <button data-v="seq" class="on">순차</button>
@@ -898,7 +910,14 @@ try{
   if([0,1,3,6,12].includes(sv.maxPlays))maxPlays=sv.maxPlays;
   if(Number.isInteger(sv.curSong)&&sv.curSong>=0&&sv.curSong<SONGS.length)curSong=sv.curSong;
 }catch(e){}
-function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode}))}catch(e){}}
+// 재생목록: 곡 번호 배열(순서 포함). 곡 번호가 저장되므로 새 곡은 SONGS 끝에만 추가한다
+let playlist=SONGS.map((_,i)=>i),holdPos=0,editing=false;
+try{
+  const pl=JSON.parse(localStorage.getItem(STORE_KEY)||'{}').playlist;
+  if(Array.isArray(pl)){const ok=[...new Set(pl)].filter(i=>Number.isInteger(i)&&i>=0&&i<SONGS.length);if(ok.length)playlist=ok}
+}catch(e){}
+if(!playlist.includes(curSong))curSong=playlist[0];
+function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode,playlist}))}catch(e){}}
 
 let AC=null,master,songBus,send,revSend,revSend0,padBus,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
 // 좌우가 서로 다른 잔향: 고음이 먼저 사라지고 저음이 오래 남는 나무 방
@@ -929,15 +948,16 @@ function resetSongBus(){
   songBus=AC.createGain();songBus.gain.value=1;songBus.connect(master);
 }
 function pickNextSong(){
-  if(playMode==='one')return curSong;
+  if(playMode==='one'&&playlist.includes(curSong))return curSong;
   if(playMode==='rnd'){
     if(!rndBag.length){
-      rndBag=SONGS.map((_,i)=>i).sort(()=>rnd()-.5);
+      rndBag=playlist.slice().sort(()=>rnd()-.5);
       if(rndBag.length>1&&rndBag[0]===curSong)rndBag.push(rndBag.shift());
     }
     return rndBag.shift();
   }
-  return (curSong+1)%SONGS.length;
+  const at=playlist.indexOf(curSong); // 재생 중인 곡을 뺐다면 빠진 자리부터 잇는다
+  return playlist[(at<0?holdPos:at+1)%playlist.length];
 }
 function buildGraph(){
   const comp=AC.createDynamicsCompressor();
@@ -968,7 +988,7 @@ function initAudio(){
   try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){} // iOS 무음 스위치에서도 재생
   AC=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});
   buildGraph();
-  if(playMode==='rnd'&&!rndBag.length){curSong=rnd()*SONGS.length|0}
+  if(playMode==='rnd'&&!rndBag.length){curSong=playlist[rnd()*playlist.length|0]}
   songStart=AC.currentTime+.25;evI=0;playedCount=0;songDone=false;
   syncPanel();
   setInterval(sched,200);sched();
@@ -1126,20 +1146,40 @@ function setPanel(open){
   panelOpen=open;
   $('panel').classList.toggle('open',open);
   $('cfg').setAttribute('aria-expanded',open);
+  if(!open&&editing)setEditing(false);
   if(open){showUI();syncPanel()}else showUI();
 }
+const songName=i=>SONGS[i].title.split(' · ')[1]||SONGS[i].title;
+function renderList(){
+  const list=$('songList'),top=list.scrollTop;list.textContent='';
+  const mk=(text,label,fn,cls)=>{const b=document.createElement('button');b.textContent=text;if(label)b.setAttribute('aria-label',label);if(cls)b.className=cls;b.onclick=e=>{e.stopPropagation();fn()};return b};
+  if(!editing)playlist.forEach((i,n)=>{const b=mk(`${n+1}. ${songName(i)}`,'',()=>playSongNow(i));b.dataset.i=i;list.appendChild(b)});
+  else [...playlist,...SONGS.map((_,i)=>i).filter(i=>!playlist.includes(i))].forEach((i,n)=>{
+    const inc=n<playlist.length,row=document.createElement('div'),nm=songName(i);row.className='row'+(inc?'':' ex');
+    const t=mk(`${inc?'✓':'＋'} ${nm}`,`${nm} ${inc?'빼기':'넣기'}`,()=>toggleSong(i),'name');t.dataset.i=i;t.setAttribute('aria-pressed',inc);t.disabled=inc&&playlist.length===1; // 한 곡은 남긴다
+    row.append(t);
+    if(inc){const up=mk('▲',`${nm} 위로`,()=>moveSong(i,-1)),dn=mk('▼',`${nm} 아래로`,()=>moveSong(i,1));up.dataset.m=i+'u';dn.dataset.m=i+'d';up.disabled=n===0;dn.disabled=n===playlist.length-1;row.append(up,dn)}
+    list.appendChild(row);
+  });
+  list.scrollTop=top;
+}
+function listChanged(focus){rndBag=[];saveCfg();renderList();syncPanel();const f=focus&&$('songList').querySelector(focus);if(f)f.focus()}
+function toggleSong(i){
+  const at=playlist.indexOf(i);
+  if(at<0)playlist.push(i);
+  else if(playlist.length>1){if(i===curSong)holdPos=at;playlist.splice(at,1)}
+  listChanged(`[data-i="${i}"]`);
+}
+function moveSong(i,d){
+  const at=playlist.indexOf(i),to=at+d;if(at<0||to<0||to>=playlist.length)return;
+  [playlist[at],playlist[to]]=[playlist[to],playlist[at]];listChanged(`[data-m="${i}${d<0?'u':'d'}"]`);
+}
+function setEditing(on){editing=on;$('editList').textContent=on?'완료':'편집';$('editList').setAttribute('aria-pressed',on);$('listTools').hidden=!on;renderList();syncPanel()}
 function syncPanel(){
   const list=$('songList');
-  if(list&&!list.children.length){
-    SONGS.forEach((s,i)=>{
-      const b=document.createElement('button');
-      b.dataset.i=i;b.textContent=`${i+1}. ${s.title.split(' · ')[1]||s.title}`;
-      b.onclick=e=>{e.stopPropagation();playSongNow(i)};
-      list.appendChild(b);
-    });
-  }
-  if(list)[...list.children].forEach((b,i)=>b.classList.toggle('on',i===curSong));
-  $('songStat').textContent=audioOn?'재생 중':'대기';
+  if(!list.children.length)renderList();
+  for(const b of list.querySelectorAll('[data-i]'))b.classList.toggle('on',+b.dataset.i===curSong);
+  $('songStat').textContent=`${playlist.length}곡 · ${audioOn?'재생 중':'대기'}`;
   [...$('modeChips').children].forEach(b=>b.classList.toggle('on',b.dataset.v===playMode));
   [...$('repChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===maxPlays));
   $('repStat').textContent=maxPlays>0?(songDone?'완료':`${Math.max(0,maxPlays-playedCount)}곡 남음`):'무한';
@@ -1156,6 +1196,9 @@ $('cfg').onclick=e=>{e.stopPropagation();setPanel(!panelOpen)};
 $('modeChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();playMode=b.dataset.v;rndBag=[];saveCfg();syncPanel()};
 $('repChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();maxPlays=+b.dataset.v;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();syncPanel()};
 $('durChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setAnimDur(+b.dataset.v)};
+$('editList').onclick=e=>{e.stopPropagation();setEditing(!editing)};
+$('listTools').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();
+  const all=SONGS.map((_,i)=>i);playlist=b.dataset.v==='reset'?all:[...playlist,...all.filter(i=>!playlist.includes(i))];listChanged()};
 $('nightChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setNight(b.dataset.v)};
 $('night').onclick=e=>{e.stopPropagation();setNight(nightOn?'off':'on')};
 $('wake').onclick=e=>{e.stopPropagation();wakeTree()};
