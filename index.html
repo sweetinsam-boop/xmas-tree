@@ -339,24 +339,51 @@ for(const t of FWT){const n=coarse?44:72;fwDirs[t]=Array.from({length:n},(_,i)=>
   if(t==='star'){const k=a/TAU*10,j=k|0,q=k-j,P=m=>{const b=-PI/2+m*PI/5,r=m%2?.42:1;return[Math.cos(b)*r,Math.sin(b)*r]},A=P(j),C=P(j+1);return[A[0]+(C[0]-A[0])*q,A[1]+(C[1]-A[1])*q,1]}
   const z=2*rnd()-1,r=Math.sqrt(1-z*z),b=rnd()*TAU,s=t==='double'&&i%3===0?.45:t==='willow'?.5+rnd()*.5:1;
   return[Math.cos(b)*r*s,z*s,s]})}
+// 크리스마스 모양 불꽃: 선을 같은 간격의 점으로 나눈다. 좌표는 -1~1, y는 아래쪽
+const FIG={};
+(function(){
+  const gap=coarse?.105:.075,C={g:'#4dff8f',r:'#ff4058',w:'#fff6ea',y:'#ffd24d',b:'#d08a4a',s:'#ffc9a0',i:'#8fe0ff'};
+  let P;const ln=(c,...q)=>{for(let i=0;i+3<q.length;i+=2){const dx=q[i+2]-q[i],dy=q[i+3]-q[i+1],n=Math.max(1,Math.round(Math.hypot(dx,dy)/gap));for(let k=0;k<n;k++)P.push([q[i]+dx*k/n,q[i+1]+dy*k/n,1,C[c]])}};
+  const arc=(c,x,y,a,b,f=0,t=TAU)=>{const n=Math.max(2,Math.round(Math.abs(t-f)*(a+b)/2/gap));for(let k=0;k<n;k++){const h=f+(t-f)*k/n;P.push([x+Math.cos(h)*a,y+Math.sin(h)*b,1,C[c]])}};
+  const dot=(c,x,y)=>{P.push([x,y,1,C[c]])};
+  P=FIG.tree=[];ln('g',0,-.78,.36,-.32,.18,-.32,.55,.16,.3,.16,.75,.68,-.75,.68,-.3,.16,-.55,.16,-.18,-.32,-.36,-.32,0,-.78);ln('b',-.14,.68,-.14,.95,.14,.95,.14,.68);
+  for(let k=0;k<10;k++){const a=-PI/2+k*PI/5,q=k%2?.07:.17;dot('y',Math.cos(a)*q,-.85+Math.sin(a)*q)}
+  [['r',0,-.42],['y',-.2,-.02],['i',.16,.02],['r',-.36,.48],['y',.02,.42],['i',.4,.5]].forEach(q=>arc(...q,.05,.05));
+  P=FIG.santa=[];ln('r',-.5,-.3,-.3,-.72,.12,-.92,.5,-.72,.78,-.36);ln('r',.5,-.3,.42,-.55);arc('w',.8,-.24,.13,.13);ln('w',-.6,-.3,.6,-.3);ln('w',.6,-.15,-.6,-.15);arc('w',-.6,-.225,.075,.075,PI/2,PI*1.5);arc('w',.6,-.225,.075,.075,-PI/2,PI/2);
+  arc('s',-.22,.04,.05,.06);arc('s',.22,.04,.05,.06);arc('r',0,.2,.09,.08);arc('w',-.16,.34,.17,.08);arc('w',.16,.34,.17,.08);arc('r',0,.5,.12,.07,0,PI);
+  ln('w',-.52,-.1,-.6,.3,-.5,.62,-.28,.86,0,.96,.28,.86,.5,.62,.6,.3,.52,-.1);
+  P=FIG.deer=[];arc('b',0,.3,.4,.56);arc('b',-.52,-.08,.2,.09,0,TAU);arc('b',.52,-.08,.2,.09,0,TAU);
+  for(const q of[-1,1]){ln('y',q*.16,-.26,q*.3,-.56,q*.46,-.92);ln('y',q*.24,-.44,q*.06,-.72);ln('y',q*.36,-.68,q*.68,-.76);arc('w',q*.16,.1,.06,.08);dot('w',q*.16,.11)}
+  arc('r',0,.5,.15,.13);arc('r',0,.5,.08,.07);dot('r',0,.5);arc('w',0,.68,.13,.06,.2,PI-.2);
+  P=FIG.sock=[];ln('w',-.5,-.88,.28,-.88,.28,-.58,-.5,-.58,-.5,-.88);ln('r',-.4,-.58,-.4,.3);arc('r',-.1,.5,.36,.36,PI*1.2,PI*.5);ln('r',-.12,.88,.46,.88);arc('r',.46,.58,.3,.3,PI/2,-PI/2);ln('r',.46,.28,.18,.12,.18,-.58);ln('g',.42,.3,.36,.86);ln('g',-.4,.16,-.02,.8);ln('y',-.4,-.3,.18,-.3);ln('y',-.4,-.06,.18,-.06);arc('w',.36,-.96,.08,.08);
+  P=FIG.bell=[];arc('y',0,-.2,.46,.56,PI,TAU);ln('y',-.46,-.2,-.5,.3,-.72,.56,.72,.56,.5,.3,.46,-.2);arc('y',0,.68,.12,.12);ln('w',-.46,.1,.48,.1);arc('r',-.24,-.88,.2,.12);arc('r',.24,-.88,.2,.12);dot('r',0,-.86);ln('r',-.06,-.8,-.26,-.6);ln('r',.06,-.8,.26,-.6);
+  P=FIG.cane=[];{const q=P;ln('w',-.28,.95,-.28,-.5);arc('w',.06,-.5,.34,.4,PI,TAU);ln('w',.4,-.5,.4,-.2,.14,-.2,.14,-.46);arc('w',.06,-.48,.09,.14,0,-PI);ln('w',-.03,-.46,-.03,.95,-.28,.95);q.forEach(v=>{if(Math.floor((v[1]+v[0]*.6+4)*4)%2)v[3]=C.r})}
+  P=FIG.flake=[];for(let k=0;k<6;k++){const a=k*PI/3,X=Math.cos(a),Y=Math.sin(a);ln('i',0,0,X*.95,Y*.95);for(const q of[.45,.72])for(const d of[-1,1]){const b=a+d*PI/4,l=q<.5?.28:.2;ln('w',X*q,Y*q,X*q+Math.cos(b)*l,Y*q+Math.sin(b)*l)}}
+})();
+for(const t in FIG)fwDirs[t]=FIG[t];
+const FIGT=Object.keys(FIG);let figBag=[];
 const fws=[];let fwNext=0;
-function launch(x,y,now){const type=FWT[rnd()*FWT.length|0],c=type==='willow'?'#ffc861':type==='heart'?'#ff4d7d':FWC[rnd()*7|0];
-  if(fws.length<(coarse?4:6))fws.push({x,y,type,c,c2:FWC[rnd()*7|0],R:(.14+rnd()*.1)*Math.min(H,W*1.5),t:now?0:-1.1,sx:x+(rnd()-.5)*60*SC_,hit:0})}
+function launch(x,y,now){
+  let type=FWT[rnd()*FWT.length|0],R=(.14+rnd()*.1)*Math.min(H,W*1.5);
+  const fig=rnd()<.6&&fws.filter(b=>b.fig).length<2; // 모양 불꽃은 동시에 둘까지, 한 바퀴 다 나온 뒤 다시 섞는다
+  if(fig){if(!figBag.length)figBag=FIGT.slice().sort(()=>rnd()-.5);type=figBag.pop();R=Math.min(H*.17,W*.21);if(!now){x=x<W/2?Math.max(R*1.1,Math.min(x,W*.3)):Math.min(W-R*1.1,Math.max(x,W*.7));y=Math.max(R*1.15,y)}}
+  const c=type==='willow'?'#ffc861':type==='heart'?'#ff4d7d':fig?FIG[type][0][3]:FWC[rnd()*7|0];
+  if(fws.length<(coarse?4:6))fws.push({x,y,type,c,fig,c2:FWC[rnd()*7|0],R,t:now?0:-1.1,sx:x+(rnd()-.5)*60*SC_,hit:0})}
 function drawFireworks(dt,f){
   if(f>.6&&T>fwNext){fwNext=T+(RM?2.4:(.25+rnd()*.55));const l=rnd()<.5;launch(W*(l?.06+rnd()*.3:.64+rnd()*.3),H*(.07+rnd()*.26))}
   proj(CX+fx*60,0,CZ+fz*60);const hy=PZ>0?PY:H*.5; // 지평선 = 강 수면
   cx.globalCompositeOperation='lighter';
-  for(let q=fws.length-1;q>=0;q--){const b=fws[q];b.t+=dt;const life=b.type==='willow'?3.2:2.2;
+  for(let q=fws.length-1;q>=0;q--){const b=fws[q];b.t+=dt;const life=b.fig?3.8:b.type==='willow'?3.2:2.2;
     if(b.t>life){fws.splice(q,1);continue}
     if(b.t<0){const p=1+b.t/1.1,e=1-(1-p)**2; // 올라가는 중
       for(let k=0;k<6;k++){const pe=Math.max(0,e-k*.03);pt(k/6,'|',k?'#ffb35c':'#fff3d6',b.sx+(b.x-b.sx)*pe+Math.sin(T*20+k)*1.5,hy+(b.y-hy)*pe,(6-k)*SC_,(1-k/6)*.9)}continue}
     if(!b.hit){b.hit=1;spr(FLARE,b.x,b.y,b.R*1.6,.9);starP=Math.max(starP,.5);
       const ci=rnd()*6|0;for(let k=0;k<6;k++){const li=rnd()*N.l|0;lF[li]=1.3;lFC[li]=ci}}
-    const D=fwDirs[b.type],gr=b.type==='willow'?.55:.16,u=b.t/life;
+    const D=fwDirs[b.type],gr=b.fig?.018:b.type==='willow'?.55:.16,u=b.t/life;
     spr(glowC(b.c),b.x,b.y,b.R*3.2,.22*(1-u)**2);
-    for(let i=0;i<D.length;i++){const d=D[i],col=b.type==='double'&&d[2]<.9?b.c2:b.c,fl=u>.55?.45+.55*Math.sin(T*22+i*7):1;
-      for(let k=0;k<3;k++){const t=b.t-k*.06;if(t<0)break;const e=b.R*(1-Math.exp(-3*t)),x=b.x+d[0]*e,y=b.y+d[1]*e+gr*b.R*t*t,a=(1-u)**1.3*fl*(1-k*.3);
-        pt((i*.618)%1,k?'·':i%2?'*':'+',col,x,y,(k?3.4:5.4)*SC_+1.5,a*1.15);
+    for(let i=0;i<D.length;i++){const d=D[i],col=d[3]||(b.type==='double'&&d[2]<.9?b.c2:b.c),fl=u>(b.fig?.72:.55)?.45+.55*Math.sin(T*22+i*7):1;
+      for(let k=0;k<(b.fig&&b.t>.8?1:3);k++){const t=b.t-k*.06;if(t<0)break;const e=b.R*(1-Math.exp(-3*t)),x=b.x+d[0]*e,y=b.y+d[1]*e+gr*b.R*t*t,a=(b.fig?Math.min(1,(1-u)*2.2):(1-u)**1.3)*fl*(1-k*.3);
+        pt((i*.618)%1,k?'·':i%2?'*':'+',col,x,y,(k?3.4:b.fig?4:5.4)*SC_+1.5,a*1.15);
         if(!k&&i%2===0&&y<hy)spr(glowC(col),x+Math.sin(T*3+y*.1)*4,hy+(hy-y)*.35,5*SC_,a*.22)}}
   }
 }
