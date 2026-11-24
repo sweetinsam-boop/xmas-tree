@@ -34,6 +34,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .ui button{width:44px;height:44px;border-radius:50%;font-size:20px;line-height:1;display:grid;place-items:center;position:relative}
 .ui button.off::after{content:"";position:absolute;width:26px;height:2px;background:currentColor;transform:rotate(-45deg)}
 .ui.hide{opacity:0;pointer-events:none}
+.ui button.on{color:var(--gold);border-color:var(--gold)}
+body.night .ui,body.night .panel,body.night .hint,body.night .cap,body.night .sleep{filter:brightness(.55) sepia(.5)}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .hint{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:11px 20px;border-radius:999px;font-family:var(--f-ui);font-size:15px;white-space:nowrap;animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{50%{box-shadow:0 0 22px rgba(255,210,122,.35)}}
@@ -65,6 +67,7 @@ body.nocursor{cursor:none}
 <canvas id="c" role="img" aria-label="반짝이는 크리스마스트리 애니메이션"></canvas>
 <div class="ui" id="ui">
   <button id="snd" class="off" aria-pressed="false" aria-label="캐럴 켜기/끄기">♪</button>
+  <button id="night" aria-pressed="false" aria-label="로우라이트 모드 켜기/끄기">☾</button>
   <button id="cfg" aria-expanded="false" aria-label="재생 및 타이머 설정">⚙</button>
   <button id="fs" aria-label="전체 화면">⛶</button>
 </div>
@@ -84,6 +87,12 @@ body.nocursor{cursor:none}
     <button data-v="3">3곡</button>
     <button data-v="6">6곡</button>
     <button data-v="12">12곡</button>
+  </div>
+  <h3>로우라이트 (심야용) <span class="stat" id="nightStat"></span></h3>
+  <div class="chips" id="nightChips">
+    <button data-v="off">끄기</button>
+    <button data-v="on">켜기</button>
+    <button data-v="auto">자동 22~7시</button>
   </div>
   <h3>트리 애니메이션 지속 <span class="stat" id="durStat"></span></h3>
   <div class="chips" id="durChips">
@@ -201,6 +210,7 @@ let lpA=0,gsA=0,mixM=1,tmR=0; // 전구 패턴·문자 세트 교체 진행도, 
 const camV={ys:0,pitch:0,dist:0,ty:0};
 // 임계 감쇠 스프링: 출발과 도착이 모두 부드럽다(지수 추종은 출발이 튄다)
 function damp(k,target,tm,dt){const w=2/tm,x=w*dt,e=1/(1+x+.48*x*x+.235*x*x*x),c=cam[k]-target,t=(camV[k]+w*c)*dt;camV[k]=(camV[k]-w*t)*e;cam[k]=target+(c+t)*e}
+let NL=0,nlR=0,nightOn=false; // 로우라이트 진행도
 let look=0,palA=0,palB=0,palM=1; // 화면 종류와 트리 색 테마 전환
 let G=0,E=0,K=0,LP=0,burstStar=0,starP=0,TM=0,tmT=0; // TM: 0=그래픽 버전, 1=문자 버전
 const env=(u,a,b,c,d)=>{const s=x=>x<=0?0:x>=1?1:x*x*(3-2*x);return s((u-a)/(b-a))*(1-s((u-c)/(d-c)))};
@@ -218,7 +228,7 @@ function setCam(){
 function proj(x,y,z){const vx=x-CX,vy=y-CY,vz=z-CZ;PZ=vx*fx+vy*fy+vz*fz;if(PZ<.06){PZ=-1;return}const X=vx*rx+vz*rz,Y=vx*ux+vy*uy+vz*uz;PX=W*.5+X/PZ*FOC;PY=H*.47-Y/PZ*FOC}
 function place(a,r,y,h){if(E>0){a+=E*3*(h-.3);r*=1+E*(.5+2.3*h);y+=E*((h-.45)*.9+.06*Math.sin(T*1.3+h*20))}WX=Math.cos(a)*r;WY=y;WZ=Math.sin(a)*r}
 const depth=Z=>{const d=1.2-(Z-cam.dist)*1.3;return d<.26?.26:d>1.25?1.25:d};
-function spr(img,x,y,s,a){if(a<.01||s<.5)return;cx.globalAlpha=a>1?1:a;cx.drawImage(img,x-s/2,y-s/2,s,s)}
+function spr(img,x,y,s,a){if(NL&&img===FLARE)a*=1-.8*NL; if(a<.01||s<.5)return;cx.globalAlpha=a>1?1:a;cx.drawImage(img,x-s/2,y-s/2,s,s)}
 
 function sampleText(){
   const w=Math.max(1,W|0),h=Math.max(1,H|0),[oc]=[document.createElement('canvas')];oc.width=w;oc.height=h;
@@ -244,8 +254,8 @@ addEventListener('resize',resize);resize();
 let beatClock=0,beatN=0;
 function onNote(e){
   if(e.title){showCap(e.title);return}
-  if(e.beat){starP=1;return}
-  const li=rnd()*N.l|0;lF[li]=1.4;lFC[li]=e.m%6;
+  if(e.beat){starP=1-.7*NL;return}
+  const li=rnd()*N.l|0;lF[li]=1.4*(1-.6*NL);lFC[li]=e.m%6;
   const bb=B[rnd()*N.b|0];bb.p=1;
   if(bb.vis&&rnd()<.6)burst(bb.sx,bb.sy,8,bb.c,.6);
 }
@@ -370,7 +380,7 @@ function launch(x,y,now){
   const c=type==='willow'?'#ffc861':type==='heart'?'#ff4d7d':fig?FIG[type][0][3]:FWC[rnd()*7|0];
   if(fws.length<(coarse?4:6))fws.push({x,y,type,c,fig,c2:FWC[rnd()*7|0],R,t:now?0:-1.1,sx:x+(rnd()-.5)*60*SC_,hit:0})}
 function drawFireworks(dt,f){
-  if(f>.6&&T>fwNext){fwNext=T+(RM?2.4:(.25+rnd()*.55));const l=rnd()<.5;launch(W*(l?.06+rnd()*.3:.64+rnd()*.3),H*(.07+rnd()*.26))}
+  if(f>.6&&T>fwNext){fwNext=T+((RM?2.4:(.25+rnd()*.55)))*(1+2*NL);const l=rnd()<.5;launch(W*(l?.06+rnd()*.3:.64+rnd()*.3),H*(.07+rnd()*.26))}
   proj(CX+fx*60,0,CZ+fz*60);const hy=PZ>0?PY:H*.5; // 지평선 = 강 수면
   cx.globalCompositeOperation='lighter';
   for(let q=fws.length-1;q>=0;q--){const b=fws[q];b.t+=dt;const life=b.fig?3.8:b.type==='willow'?3.2:2.2;
@@ -660,6 +670,7 @@ function drawSanta(dt){
 }
 
 function lightB(p,i,tn){
+  if(p===3&&nightOn)p=0; // 심야에는 딱딱 끊기는 점멸 대신 은은한 반짝임
   if(p===0)return .2+.8*(.5+.5*Math.sin(T*2.3+lP[i]))**3;
   if(p===1)return .12+.9*(.5+.5*Math.cos(tn*30+lA[i]-T*6))**6;
   if(p===2)return .6+.4*Math.sin(T*3+tn*8);
@@ -679,7 +690,7 @@ function frame(now){
   damp('ty',cur.ty,2.8,dt);
   G+=(cur.g-G)*(1-Math.exp(-dt*.7));LP=cur.lp;palM=Math.min(1,palM+dt/6);mixM=Math.min(1,mixM+dt/3.5);
   const ramp=(v,to,sec)=>v+Math.sign(to-v)*Math.min(Math.abs(to-v),dt/sec);
-  tmR=ramp(tmR,tmT,4);TM=sm(tmR);AM=ramp(AM,amT,3.6);
+  nlR=ramp(nlR,nightOn?1:0,3);NL=sm(nlR);tmR=ramp(tmR,tmT,4);TM=sm(tmR);AM=ramp(AM,amT,3.6);
   for(const n in FXR){const on=cur.fx===n,busy=Object.keys(FXR).some(m=>m!==n&&FXR[m]>.3); // 앞 장면이 걷힌 뒤 다음 배경이 들어온다
     if(!on||!busy)FXR[n]=ramp(FXR[n],on?1:0,on?3.4:2.6);FX[n]=sm(FXR[n])}
   E=cur.burst?env(u,.15,.38,.6,.85):0;K=cur.text?env(u,.18,.34,.68,.84):0;
@@ -781,6 +792,8 @@ function frame(now){
     }
   }
   drawAscii();
+  // 로우라이트: 화면 전체를 어두운 호박색으로 곱해 밝기와 푸른빛을 함께 낮춘다
+  if(NL>.003){cx.globalAlpha=1;cx.globalCompositeOperation='multiply';cx.fillStyle=`rgb(${255-147*NL|0},${255-181*NL|0},${255-207*NL|0})`;cx.fillRect(0,0,W,H)}
   cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
   if(!animStopped)animRaf=requestAnimationFrame(frame);
 }
@@ -875,14 +888,17 @@ const SONG_EV=SONGS.map(s=>{
 // 재생·타이머 설정 상태 (localStorage 저장)
 const STORE_KEY='xmas_tree_cfg_v1';
 let playMode='seq',maxPlays=0,curSong=0,playedCount=0,rndBag=[],songDone=false,stopTimer=0;
+let nightMode='off';
+const VOL=.76,NVOL=.36;
 let animDurMin=0,animEndAt=0,panelOpen=false;
 try{
   const sv=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');
   if(['seq','rnd','one'].includes(sv.playMode))playMode=sv.playMode;
+  if(['off','on','auto'].includes(sv.nightMode))nightMode=sv.nightMode;
   if([0,1,3,6,12].includes(sv.maxPlays))maxPlays=sv.maxPlays;
   if(Number.isInteger(sv.curSong)&&sv.curSong>=0&&sv.curSong<SONGS.length)curSong=sv.curSong;
 }catch(e){}
-function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong}))}catch(e){}}
+function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode}))}catch(e){}}
 
 let AC=null,master,songBus,send,revSend,revSend0,padBus,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
 // 좌우가 서로 다른 잔향: 고음이 먼저 사라지고 저음이 오래 남는 나무 방
@@ -929,7 +945,7 @@ function buildGraph(){
   // 오르골 나무 울림통 공명(380Hz 살짝 보강) + 날카로운 초고음 다듬기
   const wood=AC.createBiquadFilter();wood.type='peaking';wood.frequency.value=380;wood.Q.value=1.2;wood.gain.value=3.2;
   const silk=AC.createBiquadFilter();silk.type='highshelf';silk.frequency.value=6500;silk.gain.value=-3;
-  master=AC.createGain();master.gain.value=.76;
+  master=AC.createGain();master.gain.value=nightOn?NVOL:VOL;
   master.connect(wood);wood.connect(silk);silk.connect(comp);
   // 여러 음이 겹칠 때 찌그러지지 않게 마지막에 한 번 더 눌러 준다
   const lim=AC.createDynamicsCompressor();lim.threshold.value=-4;lim.knee.value=2;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.12;
@@ -1094,6 +1110,18 @@ setInterval(()=>{
   if(panelOpen)syncPanel();
 },1000);
 
+const isNightHour=h=>h>=22||h<7;
+function applyNight(){
+  const on=nightMode==='on'||nightMode==='auto'&&isNightHour(new Date().getHours());
+  if(on!==nightOn&&AC&&master)master.gain.setTargetAtTime(on?NVOL:VOL,AC.currentTime,.8);
+  nightOn=on;document.body.classList.toggle('night',on);
+  $('night').classList.toggle('on',on);$('night').setAttribute('aria-pressed',on);
+  [...$('nightChips').children].forEach(b=>b.classList.toggle('on',b.dataset.v===nightMode));
+  $('nightStat').textContent=on?'어둡게 보는 중':nightMode==='auto'?'22시에 켜짐':'';
+}
+function setNight(v){nightMode=v;saveCfg();applyNight()}
+setInterval(applyNight,10000);
+
 function setPanel(open){
   panelOpen=open;
   $('panel').classList.toggle('open',open);
@@ -1128,6 +1156,8 @@ $('cfg').onclick=e=>{e.stopPropagation();setPanel(!panelOpen)};
 $('modeChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();playMode=b.dataset.v;rndBag=[];saveCfg();syncPanel()};
 $('repChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();maxPlays=+b.dataset.v;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();syncPanel()};
 $('durChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setAnimDur(+b.dataset.v)};
+$('nightChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setNight(b.dataset.v)};
+$('night').onclick=e=>{e.stopPropagation();setNight(nightOn?'off':'on')};
 $('wake').onclick=e=>{e.stopPropagation();wakeTree()};
 $('hint').onclick=e=>{e.stopPropagation();toggleSound(true)};
 $('snd').onclick=e=>{e.stopPropagation();toggleSound()};
@@ -1177,6 +1207,8 @@ function onTap(x,y){
   else playChime(0,0);
 }
 cv.addEventListener('pointerdown',e=>{if(panelOpen){setPanel(false);return}if(!AC)toggleSound(true);showUI();onTap(e.clientX,e.clientY)});
+console.assert([22,23,0,6].every(isNightHour)&&![7,12,21].some(isNightHour),'심야 시간 판정');
+applyNight();if(nightOn)nlR=1; // 저장된 로우라이트는 첫 화면부터 어둡게
 addEventListener('pointermove',showUI);syncPanel();showUI();lock();
 </script>
 </body>
