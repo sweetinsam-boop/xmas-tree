@@ -112,7 +112,12 @@ const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const N=coarse?{f:1400,g:240,l:72,b:20,s:420,gr:260}:{f:2600,g:420,l:110,b:30,s:850,gr:480};
 
 // ---------- 색과 스프라이트 ----------
-const FOL=['#1f8a4c','#2fae63','#49cc7e','#8fe8ab','#d2fbdc','#8a5a34','#ffd27a','#ff5a78','#fff7ea'];
+const FOL=['#1f8a4c','#2fae63','#49cc7e','#8fe8ab','#d2fbdc','#8a5a34','#ffd27a','#ff5a78','#fff7ea',
+  '#1d5f9a','#3b8fd6','#63b8f5','#a6dcff','#e3f5ff', '#a8325e','#d4527f','#f07ba2','#ffb3c9','#ffe6ee',
+  '#5a2fa8','#7d4fd6','#a27bf0','#cdb3ff','#efe6ff', '#a06a12','#cf9426','#f0b94a','#ffd98a','#fff3d1'];
+// 트리 색 테마의 시작 색 번호: 초록·얼음·장미·보라·황금 (5 = 높이별로 흐르는 무지개)
+const PAL=[0,9,14,19,24];
+const palCol=(p,c,y)=>PAL[p<5?p:((Math.floor(y*6-T*.6)%5)+5)%5]+c;
 const LC=['#ff3b5c','#ffcc4d','#4dc3ff','#fff1d6','#ff7ad9','#7dff9e'];
 const BC=['#e8173f','#ffb300','#2f7bff','#c9d2e0','#a63cff','#ff6b9a'];
 const GIFT=[['#c8102e','#ffd27a'],['#1f5fd6','#f4f4f4'],['#2e9b57','#ff4d6d'],['#7a3cff','#ffd27a']];
@@ -178,14 +183,20 @@ const SCENES=[
   {g:.5, gs:1,lp:3,yaw:.18, pitch:.1,  dist:2.8, ty:.5, text:1},      // MERRY CHRISTMAS 글자로 변신
   {g:1,  gs:2,lp:1,yaw:.32, pitch:.32, dist:1.45,ty:.8},              // 별 근처 클로즈업, 한글 문자
   {g:.35,gs:3,lp:0,yaw:-.28,pitch:.04, dist:3.25,ty:.47},             // 멀리서 눈 내리는 풍경
+  {g:0,  gs:0,lp:2,yaw:.1,  pitch:.1,  dist:3.1, ty:.6, fx:'fw'},     // 강 건너 마을 불꽃놀이
+  {g:.2, gs:3,lp:0,yaw:.14, pitch:.06, dist:3.0, ty:.56,fx:'au'},     // 오로라·유성우 아래 캠프
+  {g:0,  gs:0,lp:1,yaw:.16, pitch:.1,  dist:3.95,ty:.43,fx:'gl'},     // 스노우볼 속 트리
 ].filter(s=>!(RM&&s.burst));
 const SDUR=RM?32:20;
 let cur=SCENES[0],order=[],sceneT0=0;
 function nextScene(T){
   if(!order.length){order=SCENES.slice().sort(()=>rnd()-.5);if(order[0]===cur)order.push(order.shift())}
-  cur=order.shift();sceneT0=T;burstStar=1;tmT=1-tmT; // 장면마다 그래픽↔문자 교대
+  cur=order.shift();sceneT0=T;burstStar=1;
+  look=(look+1)%3;tmT=look===1?1:0;amT=look===2?1:0; // 장면마다 그래픽 → 문자 → ASCII 화면 순환
+  palA=palB;palM=0;palB=rnd()<.3?0:1+(rnd()*5|0);
 }
 const cam={yaw:0,pitch:.12,dist:2.6,ty:.52,ys:.22};
+let look=0,palA=0,palB=0,palM=1; // 화면 종류와 트리 색 테마 전환
 let G=0,E=0,K=0,LP=0,burstStar=0,starP=0,TM=0,tmT=0; // TM: 0=그래픽 버전, 1=문자 버전
 const env=(u,a,b,c,d)=>{const s=x=>x<=0?0:x>=1?1:x*x*(3-2*x);return s((u-a)/(b-a))*(1-s((u-c)/(d-c)))};
 
@@ -289,6 +300,188 @@ function drawStar(){
   cx.globalCompositeOperation='lighter';spr(FLARE,x,y,s*(2.4+1.2*Math.sin(T*4)),.9*(1-TM*.8));
   if(burstStar){burst(x,y,46,null,1.3);burstStar=0}
 }
+// ---------- 특별 장면: 불꽃놀이 마을(fw) · 오로라 유성우 캠프(au) · 스노우볼(gl) ----------
+const FX={fw:0,au:0,gl:0};
+const GLOW=new Map(),glowC=c=>{let g=GLOW.get(c);if(!g)GLOW.set(c,g=glow(c));return g};
+// h<TM이면 문자, 아니면 빛점. 모든 특별 장면 입자가 그래픽↔문자 전환을 따른다
+function pt(h,ch,col,x,y,s,a){if(h<TM)spr(glyphC(ch,col),x,y,s*1.9,a);else spr(glowC(col),x,y,s*2,a)}
+const sm=x=>x<=0?0:x>=1?1:x*x*(3-2*x);
+
+// 먼 마을: 반지름 9 고리 위의 건물과 창문
+const VIL=[],WIN=['#ffd27a','#ffb35c','#fff1d6','#7fd4ff','#ff9ad5'];
+for(let i=0;i<(coarse?44:64);i++){const a=i/(coarse?44:64)*TAU+rnd()*.06,w=.3+rnd()*.5,h=.25+rnd()**2*1.1,win=[];
+  for(let k=0;k<(coarse?5:8);k++)win.push([(rnd()-.5)*w*.8,.06+rnd()*(h-.1),WIN[rnd()*5|0],rnd()*TAU,rnd()]);
+  VIL.push({a,w,h,win,roof:rnd()<.5})}
+function drawVillage(f){
+  for(const v of VIL){
+    proj(Math.cos(v.a)*9,0,Math.sin(v.a)*9);if(PZ<0||PX<-120||PX>W+120)continue;
+    const k=FOC/PZ,x=PX,y=PY,w=v.w*k,h=v.h*k;
+    cx.globalCompositeOperation='source-over';cx.globalAlpha=f*.9;cx.fillStyle='#131b40';cx.fillRect(x-w/2,y-h,w,h);
+    if(v.roof){cx.beginPath();cx.moveTo(x-w*.6,y-h);cx.lineTo(x,y-h-w*.45);cx.lineTo(x+w*.6,y-h);cx.fill()}
+    cx.globalCompositeOperation='lighter';
+    for(const[ox,oy,c,p,hh]of v.win){const tw=f*(.55+.45*Math.sin(T*(.4+hh)+p)),wx=x+ox*k;
+      pt(hh,'▪',c,wx,y-oy*k,Math.max(4,k*.085),tw*1.3);
+      pt(hh,'·',c,wx+Math.sin(T*2+p+oy*30)*k*.03,y+oy*k*.7,Math.max(4,k*.09),tw*.5)} // 얼어붙은 강에 비친 불빛
+  }
+}
+// 불꽃: 궤적을 수식으로 계산하므로 입자 상태를 저장하지 않는다
+const FWC=['#ff4d6d','#ffd24d','#4dd2ff','#b98cff','#6bffa8','#ff8ad4','#fff3d6'],FWT=['sphere','ring','double','willow','heart','star'];
+const fwDirs={};
+for(const t of FWT){const n=coarse?44:72;fwDirs[t]=Array.from({length:n},(_,i)=>{
+  const a=i/n*TAU;
+  if(t==='ring')return[Math.cos(a),Math.sin(a)*.82,1];
+  if(t==='heart')return[.062*16*Math.sin(a)**3,-.062*(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a)),1];
+  if(t==='star'){const k=a/TAU*10,j=k|0,q=k-j,P=m=>{const b=-PI/2+m*PI/5,r=m%2?.42:1;return[Math.cos(b)*r,Math.sin(b)*r]},A=P(j),C=P(j+1);return[A[0]+(C[0]-A[0])*q,A[1]+(C[1]-A[1])*q,1]}
+  const z=2*rnd()-1,r=Math.sqrt(1-z*z),b=rnd()*TAU,s=t==='double'&&i%3===0?.45:t==='willow'?.5+rnd()*.5:1;
+  return[Math.cos(b)*r*s,z*s,s]})}
+const fws=[];let fwNext=0;
+function launch(x,y,now){const type=FWT[rnd()*FWT.length|0],c=type==='willow'?'#ffc861':type==='heart'?'#ff4d7d':FWC[rnd()*7|0];
+  if(fws.length<(coarse?4:6))fws.push({x,y,type,c,c2:FWC[rnd()*7|0],R:(.14+rnd()*.1)*Math.min(H,W*1.5),t:now?0:-1.1,sx:x+(rnd()-.5)*60*SC_,hit:0})}
+function drawFireworks(dt,f){
+  if(f>.6&&T>fwNext){fwNext=T+(RM?2.4:(.25+rnd()*.55));const l=rnd()<.5;launch(W*(l?.06+rnd()*.3:.64+rnd()*.3),H*(.07+rnd()*.26))}
+  proj(CX+fx*60,0,CZ+fz*60);const hy=PZ>0?PY:H*.5; // 지평선 = 강 수면
+  cx.globalCompositeOperation='lighter';
+  for(let q=fws.length-1;q>=0;q--){const b=fws[q];b.t+=dt;const life=b.type==='willow'?3.2:2.2;
+    if(b.t>life){fws.splice(q,1);continue}
+    if(b.t<0){const p=1+b.t/1.1,e=1-(1-p)**2; // 올라가는 중
+      for(let k=0;k<6;k++){const pe=Math.max(0,e-k*.03);pt(k/6,'|',k?'#ffb35c':'#fff3d6',b.sx+(b.x-b.sx)*pe+Math.sin(T*20+k)*1.5,hy+(b.y-hy)*pe,(6-k)*SC_,(1-k/6)*.9)}continue}
+    if(!b.hit){b.hit=1;spr(FLARE,b.x,b.y,b.R*1.6,.9);starP=Math.max(starP,.5);
+      const ci=rnd()*6|0;for(let k=0;k<6;k++){const li=rnd()*N.l|0;lF[li]=1.3;lFC[li]=ci}}
+    const D=fwDirs[b.type],gr=b.type==='willow'?.55:.16,u=b.t/life;
+    spr(glowC(b.c),b.x,b.y,b.R*3.2,.22*(1-u)**2);
+    for(let i=0;i<D.length;i++){const d=D[i],col=b.type==='double'&&d[2]<.9?b.c2:b.c,fl=u>.55?.45+.55*Math.sin(T*22+i*7):1;
+      for(let k=0;k<3;k++){const t=b.t-k*.06;if(t<0)break;const e=b.R*(1-Math.exp(-3*t)),x=b.x+d[0]*e,y=b.y+d[1]*e+gr*b.R*t*t,a=(1-u)**1.3*fl*(1-k*.3);
+        pt((i*.618)%1,k?'·':i%2?'*':'+',col,x,y,(k?3.4:5.4)*SC_+1.5,a*1.15);
+        if(!k&&i%2===0&&y<hy)spr(glowC(col),x+Math.sin(T*3+y*.1)*4,hy+(hy-y)*.35,5*SC_,a*.22)}}
+  }
+}
+// 오로라 커튼: 세로 그라디언트 스프라이트 기둥
+const AUR=[['90,255,170','60,120,255'],['70,235,255','150,90,255'],['255,120,200','110,80,255']].map(([lo,hi])=>{const c=document.createElement('canvas');c.width=4;c.height=128;const g=c.getContext('2d'),l=g.createLinearGradient(0,0,0,128);l.addColorStop(0,`rgba(${hi},0)`);l.addColorStop(.45,`rgba(${hi},.35)`);l.addColorStop(.85,`rgba(${lo},.9)`);l.addColorStop(1,`rgba(${lo},0)`);g.fillStyle=l;g.fillRect(0,0,4,128);return c});
+const AUC=['#5affaa','#46ebff','#ff78c8'];
+function drawAurora(f){
+  cx.globalCompositeOperation='lighter';const st=coarse?9:12;
+  for(let b=0;b<3;b++)for(let x=-st;x<W+st;x+=st){
+    const q=x/Math.max(W,700)*5+cam.yaw*1.6+b*2.1,n=Math.sin(q*1.3+T*.22)+.6*Math.sin(q*2.9-T*.31+b)+.35*Math.sin(q*7+T*.5);
+    const i=f*Math.max(0,.42+.3*n)*(.7+.3*Math.sin(q*23+T*1.7)),h=H*(.2+.06*Math.sin(q*3+T*.4)),y=H*(.33+b*.035)+n*H*.045;
+    if(i<.02)continue;const r=Math.abs(Math.sin(x*12.9+b*78))%1;
+    if(r<TM)for(let k=0;k<5;k++)spr(glyphC(k<2?'·':k<4?':':'|',AUC[b]),x,y-h*(1-k*.22),st*1.3,i*(.25+k*.16));
+    else{cx.globalAlpha=Math.min(1,i*.55);cx.drawImage(AUR[b],x,y-h,st+1,h)}
+  }
+}
+// 유성: 평소에도 가끔, au 장면에서는 쏟아지고 마지막에 두 줄기가 꼭대기 별에서 만난다
+const mets=[];let metNext=6,wishT0=-1;
+function addMet(x0,y0,x1,y1,dur,wish){if(mets.length<12)mets.push({x0,y0,x1,y1,dur,t:0,wish,c:FWC[[2,3,6,6,4][rnd()*5|0]]})}
+function drawMeteors(dt,f,u){
+  if(T>metNext){metNext=T+(f>.5?.35+rnd()*.9:9+rnd()*10);const r=rnd()<.5?1:-1,x=W*rnd(),y=-20+rnd()*H*.18,L=Math.max(W,H)*(.3+rnd()*.3);addMet(x,y,x+r*L,y+L*(.28+rnd()*.3),.7+rnd()*.7)}
+  if(cur.fx==='au'&&u>.74&&wishT0!==sceneT0&&starPos.vis){wishT0=sceneT0;addMet(-40,H*.02,0,0,1.5,1);addMet(W+40,H*.05,0,0,1.5,2)}
+  cx.globalCompositeOperation='lighter';
+  for(let q=mets.length-1;q>=0;q--){const m=mets[q];m.t+=dt;const p=m.t/m.dur;
+    if(p>=1){if(m.wish===1){starP=2;burst(starPos.x,starPos.y,90,null,1.9);for(let k=0;k<3;k++)addRing(starPos.x,starPos.y,(140+k*90)*SC_,k+1);for(let i=0;i<N.l;i++){lF[i]=1.6;lFC[i]=i%6}}mets.splice(q,1);continue}
+    const tx=m.wish?starPos.x:m.x1,ty=m.wish?starPos.y:m.y1,a=m.wish?1:Math.sin(p*PI),x=m.x0+(tx-m.x0)*p,y=m.y0+(ty-m.y0)*p;
+    for(let k=0;k<26;k++){const e=p-k*.011;if(e<0)break;pt((k*.618)%1,k%3?'·':'*',k<4?'#fff3d6':m.c,m.x0+(tx-m.x0)*e,m.y0+(ty-m.y0)*e,(6-k*.18)*SC_+1,a*(1-k/26)*.8)}
+    spr(FLARE,x,y,(m.wish?46:30)*SC_,a);
+  }
+}
+// 모닥불과 텐트: 카메라 기준 자리라 회전해도 늘 앞쪽에 보인다
+const FIRE=Array.from({length:coarse?60:100},()=>[rnd(),rnd(),rnd()]),FCOL=['#fff3d6','#ffd24d','#ff9a3c','#ff5a2c','#a82a20'];
+const front=(r,d)=>{const l=Math.hypot(fx,fz)||1;return[rx*r-fx/l*d,rz*r-fz/l*d]};
+function drawCamp(f){
+  let[x0,z0]=front(.27,.3);proj(x0,0,z0);
+  if(PZ>0){const k=FOC/PZ,x=PX,y=PY,w=.15*k,h=.2*k; // 텐트
+    if(TM<.99){cx.globalCompositeOperation='source-over';cx.globalAlpha=f*(1-TM);const g=cx.createLinearGradient(0,y-h,0,y);g.addColorStop(0,'#7a3b1e');g.addColorStop(1,`rgba(255,${170+20*Math.sin(T*5)|0},80,1)`);
+      cx.fillStyle='#1f3558';cx.beginPath();cx.moveTo(x,y-h);cx.lineTo(x+w*1.5,y-h*.12);cx.lineTo(x+w,y);cx.lineTo(x-w,y);cx.fill();
+      cx.fillStyle=g;cx.beginPath();cx.moveTo(x,y-h);cx.lineTo(x+w*.72,y);cx.lineTo(x-w,y);cx.fill();
+      cx.fillStyle='rgba(20,10,20,.55)';cx.beginPath();cx.moveTo(x-w*.06,y-h*.72);cx.lineTo(x+w*.2,y);cx.lineTo(x-w*.4,y);cx.fill()}
+    if(TM>.01){cx.globalCompositeOperation='lighter';for(let j=0;j<6;j++){const q=j/5;spr(glyphC('/','#ffb35c'),x-w*q,y-h*(1-q),k*.06,f*TM);spr(glyphC('\\','#7fb4ff'),x+w*q,y-h*(1-q),k*.06,f*TM);spr(glyphC('_','#ffd27a'),x-w+2*w*q,y,k*.06,f*TM)}}}
+  [x0,z0]=front(-.24,.4);proj(x0,0,z0);if(PZ<0)return;
+  const k=FOC/PZ,x=PX,y=PY;cx.globalCompositeOperation='lighter';
+  spr(glowC('#ff9a3c'),x,y-k*.05,k*(.95+.08*Math.sin(T*9)+.05*Math.sin(T*23)),f*.4);
+  if(TM<.99){cx.globalCompositeOperation='source-over';cx.globalAlpha=f*(1-TM);cx.strokeStyle='#4a2a18';cx.lineCap='round';cx.lineWidth=k*.022;cx.beginPath();cx.moveTo(x-k*.08,y);cx.lineTo(x+k*.07,y-k*.03);cx.moveTo(x+k*.08,y);cx.lineTo(x-k*.07,y-k*.03);cx.stroke();cx.globalCompositeOperation='lighter'}
+  else{spr(glyphC('#','#a8693c'),x-k*.04,y,k*.07,f);spr(glyphC('#','#a8693c'),x+k*.04,y,k*.07,f)}
+  for(const[a,b,c]of FIRE){const p=(T*(.5+b*.7)+a)%1,ember=c>.86,yy=p*(ember?.55:.2),xx=(a-.5)*.15*(1-p)+Math.sin(T*(3+b*3)+a*20+p*5)*.016*(1+p*(ember?4:1));
+    pt(b,ember?'.':p<.4?'*':'^',FCOL[Math.min(4,p*5|0)],x+xx*k,y-k*(.01+yy),k*(ember?.008:.032*(1-p*.75)),f*(1-p)*(ember?1:.6))}
+}
+// 스노우볼: 유리구 + 받침 + 흔들면 도는 눈 + 눈 입자가 조립되는 눈사람
+const GY=.52,GR=.74,NGF=coarse?220:420,gfs=Array.from({length:NGF},()=>[rnd()*TAU,Math.sqrt(rnd()),rnd(),.5+rnd(),rnd()]);
+const RIM=Array.from({length:150},(_,i)=>[i/150*TAU,rnd(),rnd()*TAU]);
+const SNOWMAN=[];
+(function(){
+  const ball=(n,y,r,c)=>{for(let i=0;i<n;i++){const z=1-2*(i+.5)/n,b=i*2.39996,q=Math.sqrt(1-z*z);SNOWMAN.push([q*Math.cos(b)*r,y+z*r,q*Math.sin(b)*r,c,rnd(),'o'])}};
+  const add=(x,y,z,c,ch)=>SNOWMAN.push([x,y,z,c,rnd(),ch]),m=coarse?.65:1;
+  ball(340*m|0,.1,.11,'#f2f7ff');ball(220*m|0,.245,.08,'#f2f7ff');ball(150*m|0,.36,.058,'#f7faff');
+  for(let i=0;i<90*m;i++){const a=i*2.4,t=rnd();add(Math.cos(a)*.056,.3+t*.022,Math.sin(a)*.056,i%4?'#ff4d6d':'#fff1d6','~')}   // 목도리
+  for(let i=0;i<14;i++)add(.045+rnd()*.012,.2+i*.0075,.062,'#ff4d6d','~');
+  for(let i=0;i<60*m;i++){const a=i*2.4,q=Math.sqrt(rnd())*.075;add(Math.cos(a)*q,.405,Math.sin(a)*q,'#3f78ff','=')}             // 모자챙
+  for(let i=0;i<100*m;i++){const a=i*2.4;add(Math.cos(a)*.046,.41+rnd()*.075,Math.sin(a)*.046,i%100<12?'#ffd27a':'#3f78ff','#')}
+  for(let i=0;i<9;i++)add(0,.36,.056+i*.006,'#ff9a3c','>');
+  for(const s of[-1,1]){add(s*.022,.38,.054,'#10131f','●');add(s*.024,.382,.054,'#10131f','●');for(let i=0;i<14;i++)add(s*(.07+i*.008),.26+i*.0045,.01,'#9a6a3c',s>0?'/':'\\')}
+  for(let i=0;i<3;i++)add(0,.2+i*.04,.082-Math.abs(i-1)*.004,'#10131f','●');
+})();
+function globeBase(f){
+  const rowsY=[-.03,-.16,-.4],rowsR=[.5,.56,.66];cx.globalCompositeOperation='source-over';
+  const ring=(y,r)=>{proj(0,y,0);return PZ<0?null:{x:PX,y:PY,a:r*FOC/PZ,b:r*FOC/PZ*Math.max(.04,Math.abs(Math.sin(cam.pitch)))}};
+  const A=ring(rowsY[0],rowsR[0]),C=ring(rowsY[1],rowsR[1]),D=ring(rowsY[2],rowsR[2]);if(!A||!C||!D)return;
+  cx.globalAlpha=f*.95;const g=cx.createLinearGradient(D.x-D.a,0,D.x+D.a,0);g.addColorStop(0,'#0d1c4a');g.addColorStop(.35,'#3766c9');g.addColorStop(.6,'#24479a');g.addColorStop(1,'#091232');
+  cx.fillStyle=g;cx.beginPath();cx.ellipse(D.x,D.y,D.a,D.b,0,0,PI);cx.lineTo(A.x-A.a,A.y);cx.lineTo(A.x+A.a,A.y);cx.closePath();cx.fill();
+  cx.beginPath();cx.ellipse(A.x,A.y,A.a,A.b,0,0,TAU);cx.fillStyle='#16244f';cx.fill();
+  cx.globalCompositeOperation='lighter';
+  for(let i=0;i<64;i++){const t=i/63*PI,w=.6+.4*Math.sin(T*3+i*.5);pt(i/64,'=','#ffd27a',C.x+Math.cos(t)*C.a,C.y+Math.sin(t)*C.b,5*SC_,f*w);
+    if(i%2)pt(i/64,'#','#6fa0ff',D.x+Math.cos(t)*D.a,D.y+Math.sin(t)*D.b-3*SC_,4*SC_,f*.5)}
+}
+let gSwirl=0;
+function globeInside(dt,f,u){
+  const shake=f>.3&&(T%9)<1.2;gSwirl+=((shake?1:.12)-gSwirl)*(1-Math.exp(-dt*(shake?5:.7)));
+  const S=cur.fx==='gl'?env(u,.12,.42,.84,.97):0,[mx,mz]=front(.2,.34);
+  cx.globalCompositeOperation='source-over';
+  const list=[];
+  if(S>0||f>.3)for(let i=0;i<SNOWMAN.length;i++){const p=SNOWMAN[i],e=sm(S*1.6-p[4]*.6);if(e<.02)continue;
+    // 눈사람은 카메라를 바라본다: x=오른쪽, z=카메라 쪽
+    const[ox,oz]=front(p[0],p[2]),a=p[4]*TAU+T*(.4+gSwirl),q=.2+.25*p[4],sx=Math.cos(a*3)*q,sy=.15+((p[4]*7.3)%1)*.75,sz=Math.sin(a*3)*q;
+    proj(sx+(mx+ox-sx)*e,sy+(p[1]-sy)*e,sz+(mz+oz-sz)*e);if(PZ>0)list.push([PZ,PX,PY,p,e])}
+  list.sort((a,b)=>b[0]-a[0]);
+  for(const[z,x,y,p,e]of list){const k=FOC/z;
+    if(p[4]<TM)spr(glyphC(p[5],p[3]),x,y,k*.034,f*e);
+    else{const lit=p[2]>-.02?1:.5,s=k*(.011+.004*lit);cx.globalAlpha=Math.min(1,f*e*lit);cx.fillStyle=p[3];cx.fillRect(x-s/2,y-s/2,s,s)}}
+  cx.globalCompositeOperation='lighter';
+  for(const p of gfs){p[0]+=dt*(.15+gSwirl*2.6*p[3]);p[2]-=dt*.045*p[3]*(1-gSwirl*1.6);if(p[2]<0)p[2]+=1;if(p[2]>1)p[2]-=1;
+    const yy=.02+p[2]*(GY+GR-.06),rr=Math.sqrt(Math.max(0,GR*GR-(yy-GY)**2))*.95*p[1];
+    proj(Math.cos(p[0])*rr,yy,Math.sin(p[0])*rr);if(PZ>0)pt(p[4],p[4]<.2?'❄':'*','#fff7ea',PX,PY,FOC/PZ*.011*p[3],f*.75)}
+}
+function globeGlass(f){
+  proj(0,GY,0);if(PZ<0)return;const x=PX,y=PY,r=FOC*GR/Math.sqrt(Math.max(.1,PZ*PZ-GR*GR));
+  proj(0,-.03,0);const by=PY;cx.save();cx.beginPath();cx.rect(0,0,W,by);cx.clip(); // 받침에 묻힌 아래쪽 유리는 그리지 않는다
+  cx.globalCompositeOperation='lighter';cx.globalAlpha=f;
+  const g=cx.createRadialGradient(x,y,r*.7,x,y,r*1.04);g.addColorStop(0,'rgba(120,170,255,0)');g.addColorStop(.8,'rgba(130,180,255,.10)');g.addColorStop(.95,'rgba(190,220,255,.36)');g.addColorStop(1,'rgba(150,200,255,0)');
+  cx.fillStyle=g;cx.beginPath();cx.arc(x,y,r*1.04,0,TAU);cx.fill();
+  for(const[a,h,p]of RIM)pt(h,'·','#dcebff',x+Math.cos(a)*r,y+Math.sin(a)*r,(2+3*h)*SC_,f*(.25+.6*Math.max(0,Math.sin(T*1.6+p))));
+  cx.globalAlpha=f*.4;cx.strokeStyle='#fff';cx.lineCap='round';cx.lineWidth=r*.022;cx.beginPath();cx.arc(x,y,r*.88,PI*1.1,PI*1.36);cx.stroke();cx.lineWidth=r*.012;cx.beginPath();cx.arc(x,y,r*.9,PI*1.4,PI*1.45);cx.stroke();cx.restore();
+}
+// ---------- 화면 전체를 문자 격자로 다시 찍는 세 번째 화면(ASCII) ----------
+const RAMP=' .:-=+*#%@';let AM=0,amT=0,aN=0;
+const aS=document.createElement('canvas'),aG=aS.getContext('2d',{willReadFrequently:true}),aMk=document.createElement('canvas'),aM=aMk.getContext('2d');
+function drawAscii(){
+  if(AM<.01)return;
+  const fs=Math.max(8,Math.min(W,H)/(coarse?64:88)),q=Math.min(DPR,1.5),font=`700 ${fs*q}px ui-monospace,Menlo,"Courier New",monospace`;
+  if(aN++%2===0){ // 두 프레임에 한 번만 갱신
+    aM.font=font;const cw=aM.measureText('M').width,C=Math.ceil(W*q/cw),L=Math.ceil(H/fs),mw=Math.ceil(W*q),mh=Math.ceil(H*q);
+    if(aS.width!==C||aS.height!==L){aS.width=C;aS.height=L}
+    if(aMk.width!==mw||aMk.height!==mh){aMk.width=mw;aMk.height=mh}
+    aG.globalCompositeOperation='copy';aG.drawImage(cv,0,0,cv.width,cv.height,0,0,C,L);
+    const im=aG.getImageData(0,0,C,L),d=im.data;
+    aM.globalCompositeOperation='source-over';aM.clearRect(0,0,mw,mh);aM.font=font;aM.textBaseline='top';aM.fillStyle='#fff';
+    for(let y=0;y<L;y++){let s='';for(let x=0;x<C;x++){const o=(y*C+x)*4,v=Math.max(d[o],d[o+1],d[o+2]),n=Math.max(0,v-62)/193;
+      s+=RAMP[Math.min(9,Math.sqrt(n)*10|0)];
+      if(v>0){const b=Math.max(1,Math.min(255,90+v*1.1)/v);d[o]=Math.min(255,d[o]*b);d[o+1]=Math.min(255,d[o+1]*b);d[o+2]=Math.min(255,d[o+2]*b)}}
+      aM.fillText(s,0,y*fs*q)}
+    aG.putImageData(im,0,0);
+    aM.globalCompositeOperation='source-in';aM.imageSmoothingEnabled=false;aM.drawImage(aS,0,0,C*cw,L*fs*q);
+  }
+  const h=H*AM; // 터미널처럼 위에서 아래로 한 줄씩 인쇄
+  cx.globalCompositeOperation='source-over';cx.globalAlpha=.95;cx.fillStyle='#04050d';cx.fillRect(0,0,W,h);
+  cx.globalAlpha=1;cx.drawImage(aMk,0,0,aMk.width,h*q,0,0,W,h);
+  if(AM<.99){cx.globalCompositeOperation='lighter';cx.globalAlpha=.8;cx.fillStyle='#9fe8c0';cx.fillRect(0,h-1.5,W,3)}
+}
+
 function drawReindeer(rx,ry,ph,rudolph){
   const f1=Math.sin(ph),f2=Math.sin(ph+1.3),b1=Math.sin(ph+PI),b2=Math.sin(ph+PI+1.3);
   cx.save();cx.translate(rx,ry);
@@ -446,7 +639,9 @@ function frame(now){
   cam.pitch+=(cur.pitch+Math.sin(T*.13)*.07-cam.pitch)*k;
   cam.dist+=(cur.dist+Math.sin(T*.09)*.12-cam.dist)*k;
   cam.ty+=(cur.ty-cam.ty)*k;
-  G+=(cur.g-G)*(1-Math.exp(-dt*.7));LP=cur.lp;TM+=(tmT-TM)*(1-Math.exp(-dt*1.2));
+  G+=(cur.g-G)*(1-Math.exp(-dt*.7));LP=cur.lp;TM+=(tmT-TM)*(1-Math.exp(-dt*1.2));palM=Math.min(1,palM+dt/4);
+  AM+=Math.sign(amT-AM)*Math.min(Math.abs(amT-AM),dt/2.2);
+  for(const n in FX)FX[n]+=((cur.fx===n?1:0)-FX[n])*(1-Math.exp(-dt*.9));
   E=cur.burst?env(u,.15,.38,.6,.85):0;K=cur.text?env(u,.18,.34,.68,.84):0;
   starP*=Math.exp(-dt*3);for(const o of B)o.p*=Math.exp(-dt*2.5);
   // 소리를 끈 상태에서도 장식이 박자에 맞춰 반응하도록 가상 박자
@@ -459,11 +654,16 @@ function frame(now){
   cx.globalCompositeOperation='source-over';cx.globalAlpha=1;cx.fillStyle=BG;cx.fillRect(0,0,W,H);
   cx.globalCompositeOperation='lighter';
   for(const s of SKY){const x=((s[0]*W+cam.yaw*40)%W+W)%W;const sa=.25+.25*Math.sin(T*s[3]+s[2]);if(s[2]/TAU<TM)spr(glyph(s[3]>1.4?'+':'·',8),x,s[1]*H,s[3]*6,sa);else spr(DOT[8],x,s[1]*H,s[3]*3,sa)}
+  if(FX.au>.01)drawAurora(FX.au);
+  drawMeteors(dt,FX.au,u);
+  if(FX.fw>.01)drawVillage(FX.fw);
+  if(FX.fw>.01||fws.length)drawFireworks(dt,FX.fw);
   drawSanta(dt);
+  if(FX.gl>.01)globeBase(FX.gl);
   cx.globalCompositeOperation='lighter';
   proj(0,.02,0);if(PZ>0)spr(LGL[1],PX,PY,FOC/PZ*1.3,.16);
-  proj(0,0,0);if(PZ>0){const w=FOC/PZ*2.1,h=w*Math.max(.12,Math.abs(Math.sin(cam.pitch))*.9);cx.globalAlpha=(.05+.22*acc)*(1-K);cx.drawImage(DOT[8],PX-w/2,PY-h/2,w,h)} // 눈 이불
-  for(let i=0;i<N.gr;i++){if(grR[i]>.35+.6*acc)continue;proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*(.25+.35*acc)*(1-K));else spr(DOT[8],PX,PY,gs*(1+acc),depth(PZ)*(.2+.35*acc)*(1-K))}}
+  proj(0,0,0);if(PZ>0){const w=FOC/PZ*2.1,h=w*Math.max(.12,Math.abs(Math.sin(cam.pitch))*.9);cx.globalAlpha=(.05+.22*acc)*(1-K)*(1-FX.gl*.8);cx.drawImage(DOT[8],PX-w/2,PY-h/2,w,h)} // 눈 이불
+  for(let i=0;i<N.gr;i++){if(grR[i]>.35+.6*acc||FX.gl>.4&&grR[i]>.5)continue;proj(Math.cos(grA[i])*grR[i],0,Math.sin(grA[i])*grR[i]);if(PZ>0){const gs=Math.min(14,FOC/PZ*.012);if(grA[i]/TAU<TM)spr(glyph(i%3?'·':'*',8),PX,PY,gs*2.4,depth(PZ)*(.25+.35*acc)*(1-K));else spr(DOT[8],PX,PY,gs*(1+acc),depth(PZ)*(.2+.35*acc)*(1-K))}}
 
   for(const o of items){const ox=Math.cos(o.a)*o.r,oz=Math.sin(o.a)*o.r;o.z=(ox-CX)*fx+(o.y-CY)*fy+(oz-CZ)*fz}
   items.sort((a,b)=>b.z-a.z);
@@ -477,7 +677,7 @@ function frame(now){
     place(fA[i],fR[i],fY[i],fH[i]);proj(WX,WY,WZ);if(PZ<0)continue;
     let x=PX,y=PY,d=depth(PZ),s=Math.min(46,FOC/PZ*.017);
     if(K>0){x+=(TX[i]-x)*K;y+=(TY[i]-y)*K;d+=(1-d)*K;s+=(txtS-s)*K}
-    const tw=.5+.5*Math.sin(T*fS[i]+fP[i]),sp=tw**10,ci=K>.5?6+i%3:fC[i];
+    const tw=.5+.5*Math.sin(T*fS[i]+fP[i]),sp=tw**10,ci=K>.5?6+i%3:fC[i]===5?5:palCol(fG[i]<palM?palB:palA,fC[i],fY[i]);
     const a=d*(.22+.8*sp)+K*.25;
     if(fG[i]<GX)spr(glyph(ch[i%nc],ci),x,y,s*(2.1+.7*TM),a*(.75+.25*TM));else spr(DOT[ci],x,y,s*2.3,a);
     if(i>=40&&fH[i]<acc*.22&&TM<.99)spr(DOT[8],x,y-s*.35,s*1.1,a*.4*(1-K)*(1-TM)); // 가지에 쌓인 눈
@@ -504,6 +704,8 @@ function frame(now){
   cx.globalCompositeOperation='source-over';
   for(const o of items)if(o.z<=cam.dist)drawItem(o);
   drawStar();
+  if(FX.au>.01)drawCamp(FX.au);
+  if(FX.gl>.01)globeInside(dt,FX.gl,u);
   // 눈
   cx.globalCompositeOperation='lighter';
   // 눈: 느린 강약 주기 + 34초마다 좌우 번갈아 부는 돌풍(눈보라) + 쌓임
@@ -518,12 +720,13 @@ function frame(now){
     if(sY[i]<-.05){sY[i]=1.75;sX[i]=(rnd()-.5)*3.2;sZ[i]=(rnd()-.5)*3.2}
     if(sX[i]>1.6)sX[i]-=3.2;else if(sX[i]<-1.6)sX[i]+=3.2;if(sZ[i]>1.6)sZ[i]-=3.2;else if(sZ[i]<-1.6)sZ[i]+=3.2;
     proj(sX[i],sY[i],sZ[i]);if(PZ<0)continue;
-    const s=Math.min(90,FOC/PZ*.011*sK[i]),dd=depth(PZ),a=(sK[i]>2.5?.32:.6)*dd;
+    const s=Math.min(90,FOC/PZ*.011*sK[i]),dd=depth(PZ),a=(sK[i]>2.5?.32:.6)*dd*(1-FX.gl*.75)*(1-FX.fw*.65);
     if(i%9===0||sP[i]/TAU<TM){const w=Math.min(150,s*2.6),r=T*(.6+sO[i])+sP[i],c=Math.cos(r)*DPR,n=Math.sin(r)*DPR; // 회전하며 떨어지는 결정
       cx.globalAlpha=Math.min(1,a*1.1);cx.setTransform(c,n,-n,c,PX*DPR,PY*DPR);cx.drawImage(glyph(i%3?'*':'❄',8),-w/2,-w/2,w,w)}
     else if(a>.01){cx.globalAlpha=Math.min(1,a);const w=s*str;cx.drawImage(DOT[8],PX-w/2,PY-s/2,w,s)}
   }
   cx.setTransform(DPR,0,0,DPR,0,0);
+  if(FX.gl>.01)globeGlass(FX.gl);
   for(let i=0;i<MS;i++){if(pL[i]<=0)continue;pL[i]-=dt;pVY[i]+=170*SC_*dt;pVX[i]*=.985;pX[i]+=pVX[i]*dt;pY[i]+=pVY[i]*dt;const l=pL[i]/pM[i];if(i%10<TM*10)spr(glyphC(i%2?'*':'+',LC[pC[i]]),pX[i],pY[i],(9+9*l)*SC_,l);else spr(LGL[pC[i]],pX[i],pY[i],(5+7*l)*SC_,l);if(l>.7)spr(FLARE,pX[i],pY[i],12*SC_,l-.6)}
   // 클릭 파동 링 (그래픽: 빛 원형 링 + 플래시 / 문자: ✦· 확산)
   for(let i=0;i<RN;i++){
@@ -539,7 +742,8 @@ function frame(now){
       for(let k=0;k<12;k++){const ag=k/12*TAU+p*.5;spr(glyphC(k%2?'·':'✦',col),rX[i]+Math.cos(ag)*rad,rY[i]+Math.sin(ag)*rad,(10+5*(1-p))*SC_,a*TM)}
     }
   }
-  cx.globalAlpha=1;
+  drawAscii();
+  cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
   if(!animStopped)animRaf=requestAnimationFrame(frame);
 }
 animRaf=requestAnimationFrame(frame);
@@ -876,6 +1080,7 @@ function onTap(x,y){
     hit.p=1.6;burst(hit.sx,hit.sy,24,hit.c,.95);addRing(hit.sx,hit.sy,88*SC_,hit.c);playChime(0,0);return;
   }
   // 4. 일반 위치 클릭 → 별빛 불꽃 + 파동 링 + 전구 반응 (+ 상단 밤하늘 클릭 시 산타 호출)
+  if(FX.fw>.5&&y<H*.5)launch(x,y,1); // 불꽃놀이 장면에서는 하늘을 탭한 자리에서 불꽃이 터진다
   const ci=rnd()*6|0;
   burst(x,y,22,ci,.9);addRing(x,y,92*SC_,ci);
   for(let k=0;k<4;k++){const li=rnd()*N.l|0;lF[li]=1.5;lFC[li]=ci}
