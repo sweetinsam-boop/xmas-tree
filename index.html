@@ -100,6 +100,14 @@ body.nocursor{cursor:none}
     <button data-v="6">6곡</button>
     <button data-v="12">12곡</button>
   </div>
+  <h3>음악 재생 시간 <span class="stat" id="mtStat"></span></h3>
+  <div class="chips" id="mtChips">
+    <button data-v="0" class="on">무한</button>
+    <button data-v="15">15분</button>
+    <button data-v="30">30분</button>
+    <button data-v="60">1시간</button>
+    <button data-v="120">2시간</button>
+  </div>
   <h3>로우라이트 (심야용) <span class="stat" id="nightStat"></span></h3>
   <div class="chips" id="nightChips">
     <button data-v="off">끄기</button>
@@ -952,6 +960,7 @@ const SONG_EV=SONGS.map(s=>{
 
 // 재생·타이머 설정 상태 (localStorage 저장)
 const STORE_KEY='xmas_tree_cfg_v1';
+let musicMin=0,musicEndAt=0; // 음악 재생 시간 제한(분), 끝나는 시각
 let playMode='seq',maxPlays=0,curSong=0,playedCount=0,rndBag=[],songDone=false,stopTimer=0;
 let nightMode='off';
 const VOL=.76,NVOL=.36;
@@ -960,6 +969,7 @@ try{
   const sv=JSON.parse(localStorage.getItem(STORE_KEY)||'{}');
   if(['seq','rnd','one'].includes(sv.playMode))playMode=sv.playMode;
   if(['off','on','auto'].includes(sv.nightMode))nightMode=sv.nightMode;
+  if([0,15,30,60,120].includes(sv.musicMin))musicMin=sv.musicMin;
   if([0,1,3,6,12].includes(sv.maxPlays))maxPlays=sv.maxPlays;
   if(Number.isInteger(sv.curSong)&&sv.curSong>=0&&sv.curSong<SONGS.length)curSong=sv.curSong;
 }catch(e){}
@@ -970,7 +980,7 @@ try{
   if(Array.isArray(pl)){const ok=[...new Set(pl)].filter(i=>Number.isInteger(i)&&i>=0&&i<SONGS.length);if(ok.length)playlist=ok}
 }catch(e){}
 if(!playlist.includes(curSong))curSong=playlist[0];
-function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode,playlist}))}catch(e){}}
+function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode,playlist,musicMin}))}catch(e){}}
 
 let AC=null,master,songBus,send,revSend,revSend0,padBus,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
 // 좌우가 서로 다른 잔향: 고음이 먼저 사라지고 저음이 오래 남는 나무 방
@@ -1111,13 +1121,7 @@ function sched(){
         songDone=true;syncPanel();
         const waitMs=Math.max(400,(songStart+cur.dur-AC.currentTime)*1000+1200);
         clearTimeout(stopTimer);
-        stopTimer=setTimeout(async()=>{
-          if(!songDone)return;
-          if(AC&&AC.state==='running')await AC.suspend().catch(()=>{});
-          audioOn=false;
-          $('snd').classList.add('off');$('snd').setAttribute('aria-pressed',false);
-          showCap('♪ 설정한 재생을 마쳤습니다');syncPanel();
-        },waitMs);
+        stopTimer=setTimeout(()=>{if(songDone)endMusic('♪ 설정한 재생을 마쳤습니다')},waitMs);
         break;
       }
       songStart+=cur.dur;
@@ -1130,6 +1134,21 @@ function sched(){
     evI++;
   }
 }
+async function endMusic(msg){
+  musicEndAt=0;
+  if(AC&&AC.state==='running')await AC.suspend().catch(()=>{});
+  audioOn=false;
+  $('snd').classList.add('off');$('snd').setAttribute('aria-pressed',false);
+  showCap(msg);syncPanel();
+}
+// 시간 제한은 소리를 켠 시각부터 잰다. 끝나면 4초 동안 줄인 뒤 멈추고, 다음에 켤 때를 위해 음량을 되돌린다
+const armMusicTimer=()=>{musicEndAt=musicMin>0?Date.now()+musicMin*60000:0};
+setInterval(()=>{
+  if(!musicEndAt||!audioOn||Date.now()<musicEndAt){if(panelOpen&&musicEndAt)syncPanel();return}
+  musicEndAt=0;songDone=true;clearTimeout(stopTimer);
+  const g=master.gain,v=g.value,now=AC.currentTime;g.cancelScheduledValues(now);g.setValueAtTime(v,now);g.linearRampToValueAtTime(.0001,now+4);
+  stopTimer=setTimeout(async()=>{await endMusic('♪ 설정한 시간이 되어 음악을 멈췄습니다');g.cancelScheduledValues(0);g.value=nightOn?NVOL:VOL},4200);
+},1000);
 async function playSongNow(idx){
   curSong=idx;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();
   if(!AC){initAudio();audioOn=true}
@@ -1139,6 +1158,7 @@ async function playSongNow(idx){
     songStart=AC.currentTime+.12;evI=0;sched();
   }
   $('snd').classList.remove('off');$('snd').setAttribute('aria-pressed',true);
+  if(!musicEndAt)armMusicTimer();
   $('hint').hidden=true;lock();syncPanel();
 }
 async function toggleSound(force){
@@ -1149,6 +1169,7 @@ async function toggleSound(force){
     await AC.resume().catch(()=>{});audioOn=true;sched();
   }
   else{await AC.suspend();audioOn=false}
+  if(audioOn&&!musicEndAt)armMusicTimer();
   if(audioOn&&AC.state!=='running')await AC.resume().catch(()=>{});
   $('snd').classList.toggle('off',!audioOn);$('snd').setAttribute('aria-pressed',audioOn);
   $('hint').hidden=true;lock();syncPanel();
@@ -1235,6 +1256,9 @@ function syncPanel(){
   $('songStat').textContent=`${playlist.length}곡 · ${audioOn?'재생 중':'대기'}`;
   [...$('modeChips').children].forEach(b=>b.classList.toggle('on',b.dataset.v===playMode));
   [...$('repChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===maxPlays));
+  [...$('mtChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===musicMin));
+  if(musicEndAt&&audioOn){const rem=Math.max(0,Math.ceil((musicEndAt-Date.now())/1000));$('mtStat').textContent=`${String(rem/60|0).padStart(2,'0')}:${String(rem%60).padStart(2,'0')} 남음`}
+  else $('mtStat').textContent=musicMin>0?'켜면 시작':'계속 재생';
   $('repStat').textContent=maxPlays>0?(songDone?'완료':`${Math.max(0,maxPlays-playedCount)}곡 남음`):'무한';
   [...$('durChips').children].forEach(b=>b.classList.toggle('on',+b.dataset.v===animDurMin));
   if(animDurMin>0&&animEndAt&&!animStopped){
@@ -1247,6 +1271,7 @@ function syncPanel(){
 $('panel').addEventListener('pointerdown',e=>e.stopPropagation());
 $('cfg').onclick=e=>{e.stopPropagation();setPanel(!panelOpen)};
 $('modeChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();playMode=b.dataset.v;rndBag=[];saveCfg();syncPanel()};
+$('mtChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();musicMin=+b.dataset.v;armMusicTimer();if(!audioOn)musicEndAt=0;saveCfg();syncPanel()};
 $('repChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();maxPlays=+b.dataset.v;playedCount=0;songDone=false;clearTimeout(stopTimer);saveCfg();syncPanel()};
 $('durChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();setAnimDur(+b.dataset.v)};
 $('editList').onclick=e=>{e.stopPropagation();setEditing(!editing)};
