@@ -999,11 +999,14 @@ try{
 const SHOWN=SONGS.map((_,i)=>i).filter(i=>!SONGS[i].hide); // 숨긴 곡은 목록·재생에서 빠진다
 let playlist=SHOWN.slice(),holdPos=0,editing=false;
 try{
-  const pl=JSON.parse(localStorage.getItem(STORE_KEY)||'{}').playlist;
-  if(Array.isArray(pl)){const ok=[...new Set(pl)].filter(i=>Number.isInteger(i)&&i>=0&&i<SONGS.length&&!SONGS[i].hide);if(ok.length)playlist=ok}
+  const sv=JSON.parse(localStorage.getItem(STORE_KEY)||'{}'),pl=sv.playlist;
+  // 저장 뒤에 새로 추가된 곡은 저장 목록 끝에 자동으로 붙인다(known이 없던 예전 저장값은 15곡 시절)
+  const known=Number.isInteger(sv.known)?sv.known:15;
+  if(Array.isArray(pl)){const ok=[...new Set(pl)].filter(i=>Number.isInteger(i)&&i>=0&&i<SONGS.length&&!SONGS[i].hide);
+    ok.push(...SHOWN.filter(i=>i>=known&&!ok.includes(i)));if(ok.length)playlist=ok}
 }catch(e){}
 if(!playlist.includes(curSong))curSong=playlist[0];
-function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode,playlist,musicMin}))}catch(e){}}
+function saveCfg(){try{localStorage.setItem(STORE_KEY,JSON.stringify({playMode,maxPlays,curSong,nightMode,playlist,musicMin,known:SONGS.length}))}catch(e){}}
 
 let AC=null,master,songBus,send,revSend,revSend0,padBus,noise,evI=0,songStart=0,audioOn=false;const noteQ=[];
 // 좌우가 서로 다른 잔향: 고음이 먼저 사라지고 저음이 오래 남는 나무 방
