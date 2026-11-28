@@ -40,33 +40,40 @@ PC 모니터·태블릿·스마트폰 화면에 켜두기 좋은 **인터랙티�
   - **오너먼트 클릭**: 해당 방울 반짝임 + 같은 색 불꽃
   - **산타 썰매 클릭**: 별가루 폭포 + 썰매 방울 소리
   - **상단 밤하늘 클릭 (산타 대기 중일 때)**: 산타 썰매 즉시 출격!
-- **기계식 오르골 캐럴 15곡 & 화면 꺼짐 방지**
+- **기계식 오르골 캐럴·클래식 15곡 & 화면 꺼짐 방지**
   - 외부 음원 파일 없이 Web Audio API로 **쇠빗(Steel Tine) 비정수배 금속 배음 · 실린더 핀 튕김 클릭 · 우드 울림통 리버브**를 실시간 합성해 영롱한 오르골 음색으로 연주합니다.
   - 박자에 맞춰 트리 전구·오너먼트·꼭대기 별이 반응하며, Screen Wake Lock API로 켜두기 용도를 지원합니다.
 
 ---
 
-## 🎵 수록 오르골 캐럴 (퍼블릭 도메인 15곡)
+## 🎵 수록곡 (퍼블릭 도메인 15곡)
 
-모든 곡은 저작권이 만료된 퍼블릭 도메인(Public Domain) 명곡으로 구성되어 있으며 순서대로 무한 반복 재생됩니다.
+모두 저작권이 만료된 곡이며, 녹음을 쓰지 않고 선율을 Web Audio로 직접 합성해 오르골 소리로 연주합니다.
 
-| # | 곡명 | 원곡 / 작곡 | 분위기 |
+### 캐럴
+| # | 곡명 | 원곡 / 작곡 |
+|---|---|---|
+| 1 | **징글벨** (Jingle Bells) | James Lord Pierpont (1857) |
+| 2 | **고요한 밤 거룩한 밤** (Silent Night) | Franz Xaver Gruber (1818) |
+| 3 | **Deck the Halls** | 웨일스 민요 |
+| 4 | **Shchedryk** (종소리 캐럴 선율) | Mykola Leontovych (1916), 본 프로젝트용 편곡 |
+| 5 | **참 반가운 성도여** (O Come, All Ye Faithful) | John F. Wade (18세기) |
+| 6 | **천사들의 노래가** (Angels We Have Heard on High) | 프랑스 전통 캐럴 |
+| 7 | **천사 찬송하기를** (Hark! The Herald Angels Sing) | Felix Mendelssohn (1840) |
+| 8 | **올드 랭 사인** (Auld Lang Syne) | 스코틀랜드 민요 |
+
+### 클래식 (주제 부분 발췌)
+| # | 곡명 | 작곡 | 선율 출처 |
 |---|---|---|---|
-| 1 | **징글벨** (Jingle Bells) | James Lord Pierpont (1857) | 경쾌하고 밝은 대표 캐럴 |
-| 2 | **별사탕 요정의 춤** (Dance of the Sugar Plum Fairy) | P. I. Tchaikovsky — *호두까기 인형* (1892) | 신비롭고 영롱한 오르골·첼레스타 대표곡 |
-| 3 | **고요한 밤 거룩한 밤** (Silent Night) | Franz Xaver Gruber (1818) | 포근하고 잔잔한 6/8박자 아르페지오 |
-| 4 | **그린슬리브스** (Greensleeves / What Child Is This?) | 16세기 영국 전통 민요·캐럴 | 아련하고 서정적인 겨울 밤 감성 |
-| 5 | **저 들 밖에 한밤중에** (The First Noel) | 영국 전통 캐럴 | 맑고 웅장한 3/4박자 크리스마스 송 |
-| 6 | **We Wish You a Merry Christmas** | 16세기 영국 전통 캐럴 | 따뜻하고 축제 같은 피날레 |
-| 7 | **Deck the Halls** | 16세기 웨일스 민요 | 흥겨운 4/4박자 |
-| 8 | **기쁘다 구주 오셨네** (Joy to the World) | Lowell Mason 편곡 (1839) | 힘차고 밝은 찬가 |
-| 9 | **소나무야** (O Tannenbaum) | 독일 민요 | 포근한 3/4박자 |
-| 10 | **God Rest Ye Merry, Gentlemen** | 영국 전통 캐럴 | 단조의 고풍스러운 분위기 |
-| 11 | **Shchedryk** (종소리 캐럴 선율) | Mykola Leontovych (1916) | 반복 음형이 몰아치는 곡, 본 프로젝트용 편곡 |
-| 12 | **참 반가운 성도여** (O Come, All Ye Faithful) | John F. Wade (18세기) | 장엄한 찬가 |
-| 13 | **천사들의 노래가** (Angels We Have Heard on High) | 프랑스 전통 캐럴 | 긴 글로리아 선율 |
-| 14 | **천사 찬송하기를** (Hark! The Herald Angels Sing) | Felix Mendelssohn (1840) | 웅장한 합창곡 |
-| 15 | **올드 랭 사인** (Auld Lang Syne) | 스코틀랜드 민요 | 한 해를 마무리하는 곡 |
+| 9 | **꽃의 왈츠** (호두까기 인형) | 차이콥스키 (1892) | webern/mx 저장소의 MusicXML 피아노 악보 |
+| 10 | **스케이터 왈츠** (Les Patineurs Op.183) | 발트토이펠 (1882) | GTTM 선율 데이터셋 |
+| 11 | **사계 「겨울」 2악장 라르고** | 비발디 (1725) | Mutopia Project (CC BY-SA 3.0) |
+| 12 | **예수, 인간 소망의 기쁨** (BWV 147) | 바흐 (1723) | GTTM 선율 데이터셋 |
+| 13 | **할렐루야** (메시아 HWV 56) | 헨델 (1741) | Mutopia Project |
+| 14 | **오 거룩한 밤** (Cantique de Noël) | 아당 (1847) | Paul Hardy's Xmas Tunebook (abcnotation) |
+| 15 | **반짝반짝 작은 별 변주곡 주제** (K.265) | 모차르트 (1781) | GTTM 선율 데이터셋 |
+
+클래식 곡의 화음 반주는 원곡의 베이스·선율에서 자동으로 골라 단순화한 것입니다. 1회 재생이 30초가 안 되던 7곡(별사탕 요정의 춤, 그린슬리브스, 저 들 밖에 한밤중에, We Wish You a Merry Christmas, 기쁘다 구주 오셨네, 소나무야, 만백성 기뻐하여라)은 목록에서 숨겼습니다.
 
 ---
 
